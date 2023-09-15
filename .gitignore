@@ -1,0 +1,10 @@
+# Windows
+x64
+*.dll
+*.exe
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+
+.vs
