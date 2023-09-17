@@ -1,3 +1,4 @@
+#include <SFML/Graphics/Image.hpp>
 #include <SFML/Window/Event.hpp>
 #include <SFML/Window/Window.hpp>
 #include <glad/glad.h>
@@ -13,6 +14,7 @@ struct Vertex
 {
     glm::vec3 position{0.0f};
     glm::vec3 colour{0.0f};
+    glm::vec2 texture{0.0f};
 };
 
 namespace GUI
@@ -95,7 +97,7 @@ int main()
         return -1;
     }
     glViewport(0, 0, 1280, 720);
-    glClearColor(1.0, 1.0, 1.0, 1.0);
+    // glClearColor(1.0, 1.0, 1.0, 1.0);
 
     init_opengl_debugging();
 
@@ -105,10 +107,10 @@ int main()
 
     GUI::init(&window);
 
-    std::vector<Vertex> points = {{{0.5f, 0.5f, 0.0f}, {0.2f, 0.2f, 0.5f}},
-                                  {{-0.5f, 0.5f, 0.0f}, {0.2f, 0.5f, 0.5f}},
-                                  {{-0.5f, -0.5f, 0.0f}, {0.2f, 0.5f, 1.0f}},
-                                  {{0.5f, -0.5f, 0.0f}, {0.2f, 0.5f, 0.5f}}
+    std::vector<Vertex> points = {{{0.5f, 0.5f, 0.0f}, {0.2f, 0.2f, 0.5f}, {0.0f, 1.0f}},
+                                  {{-0.5f, 0.5f, 0.0f}, {0.2f, 0.5f, 0.5f}, {1.0f, 1.0f}},
+                                  {{-0.5f, -0.5f, 0.0f}, {0.2f, 0.5f, 1.0f}, {1.0f, 0.0f}},
+                                  {{0.5f, -0.5f, 0.0f}, {0.2f, 0.5f, 0.5f}, {0.0f, 0.0f}}
 
     };
 
@@ -117,8 +119,9 @@ int main()
     // };
     std::vector<GLuint> indices = {0, 1, 2, 2, 3, 0};
 
-    // Declare the OpenGL buffer objects
-    /**/
+    // ----------------------------------------
+    // ==== Create the OpenGL vertex array ====
+    // ----------------------------------------
     GLuint vao = 0;
     GLuint vbo = 0;
     GLuint ebo = 0;
@@ -143,16 +146,50 @@ int main()
     // glEnableVertexAttribArray
     glEnableVertexArrayAttrib(vao, 0);
     glEnableVertexArrayAttrib(vao, 1);
+    glEnableVertexArrayAttrib(vao, 2);
 
     // glVertexAttribPointer
     glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, offsetof(Vertex, position));
     glVertexArrayAttribFormat(vao, 1, 3, GL_FLOAT, GL_FALSE, offsetof(Vertex, colour));
+    glVertexArrayAttribFormat(vao, 2, 2, GL_FLOAT, GL_FALSE, offsetof(Vertex, texture));
     glVertexArrayAttribBinding(vao, 0, 0);
     glVertexArrayAttribBinding(vao, 1, 0);
+    glVertexArrayAttribBinding(vao, 2, 0);
 
+    // -----------------------------------
+    // ==== Create the OpenGL Texture ====
+    // -----------------------------------
+    GLuint texture_handle;
+    glCreateTextures(GL_TEXTURE_2D, 1, &texture_handle);
+
+    // Load the texture from file
+    sf::Image image;
+    image.loadFromFile("assets/textures/person.png");
+    image.flipVertically();
+    image.flipHorizontally();
+    auto w = image.getSize().x;
+    auto h = image.getSize().y;
+    auto data = image.getPixelsPtr();
+
+    // Upload the texture to the GPU
+    glTextureStorage2D(texture_handle, 1, GL_RGBA8, w, h);
+    glTextureSubImage2D(texture_handle, 0, 0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, data);
+
+    // Set texture wrapping and min/mag filters
+    glTextureParameteri(texture_handle, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(texture_handle, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(texture_handle, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTextureParameteri(texture_handle, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    // ----------------------
+    // ==== Load shaders ====
+    // ----------------------
     Shader shader;
     shader.load_from_file("assets/shaders/vertex.glsl", "assets/shaders/fragment.glsl");
 
+    // -------------------
+    // ==== Main Loop ====
+    // -------------------
     while (window.isOpen())
     {
         GUI::begin_frame();
@@ -176,11 +213,18 @@ int main()
 
         GUI::show_debug_window();
 
+        // Set the render states
+        glBindTextureUnit(0, texture_handle);
         shader.bind();
         glBindVertexArray(vao);
+
+        // Render
         glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, nullptr);
-        glUseProgram(0);
+
+        // Un-set render states
         glBindVertexArray(0);
+        glUseProgram(0);
+        glBindTextureUnit(0, 0);
 
         GUI::render();
 
