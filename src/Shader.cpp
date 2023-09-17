@@ -1,6 +1,7 @@
 #include "Shader.h"
 
 #include "Util.h"
+#include <cstring>
 #include <iostream>
 
 namespace
@@ -48,13 +49,8 @@ namespace
     {
         //  Create and compile
         GLuint shader = glCreateShader(shader_type);
-        //  GLint length = static_cast<GLint>(source.length());
-        // glShaderSource(shader, 1, (const GLchar* const*)source.data(), &length);
-        //  return 0;
-        //  glCompileShader(shader);
 
-        int length = strlen(source);
-        glShaderSource(shader, 1, (const GLchar* const*)&source, &length);
+        glShaderSource(shader, 1, (const GLchar* const*)&source, nullptr);
         glCompileShader(shader);
 
         // Verify
@@ -72,27 +68,23 @@ bool Shader::load_from_file(const fs::path& vertex_file_path,
     // Load the files into strings and verify
     auto vertex_file_source = read_file_to_string(vertex_file_path);
     auto fragment_file_source = read_file_to_string(fragment_file_path);
-    if (vertex_file_source.length() == 0)
+    if (vertex_file_source.length() == 0 || fragment_file_source.length() == 0)
     {
-        std::cerr << "Failed to read vertex shader file '" << vertex_file_path << "'.\n";
-        return false;
-    }
-    if (fragment_file_source.length() == 0)
-    {
-        std::cerr << "Failed to read fragment shader file '" << fragment_file_path << "'.\n";
         return false;
     }
 
-    // Compile the shaders and verify they are correct
+    // Compile the vertex shader
     std::cout << "Compiling " << vertex_file_path << ".\n";
-    auto vertex_shader = compile_shader(vertex_file_source.data(), GL_VERTEX_SHADER);
+    auto vertex_shader = compile_shader(vertex_file_source.c_str(), GL_VERTEX_SHADER);
     if (!vertex_shader)
     {
         std::cerr << "Failed to compile vertex shader file " << vertex_file_path << ".\n";
         return false;
     }
+
+    // Compile the fragment shader
     std::cout << "Compiling " << fragment_file_path << ".\n";
-    auto fragment_shader = compile_shader(fragment_file_source.data(), GL_FRAGMENT_SHADER);
+    auto fragment_shader = compile_shader(fragment_file_source.c_str(), GL_FRAGMENT_SHADER);
     if (!fragment_shader)
     {
         std::cerr << "Failed to compile fragment shader file " << fragment_file_path << ".\n";
@@ -109,11 +101,22 @@ bool Shader::load_from_file(const fs::path& vertex_file_path,
     {
         std::cerr << "Failed to link" << vertex_file_path << " and " << fragment_file_path
                   << ".\n";
+        return false;
+    }
+    glValidateProgram(program_);
+
+    int status = 0;
+    glGetProgramiv(program_, GL_VALIDATE_STATUS, &status);
+    if (status == GL_FALSE)
+    {
+        std::cerr << "Failed to validate shader program.\n";
+        return false;
     }
 
     // Delete the temporary shaders
     glDeleteShader(vertex_shader);
     glDeleteShader(fragment_shader);
+    return true;
 }
 
 void Shader::bind() const

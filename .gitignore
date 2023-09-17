@@ -1,10 +1,23 @@
+# Linux
+/bin
+dsa_practice
+build/
+
 # Windows
-x64
 *.dll
 *.exe
 *.sln
 *.vcxproj
-*.vcxproj.filters
-*.vcxproj.user
+*.filters
+*.user
+*.vs
+.vscode
+Debug/
+Release/
 
-.vs
+# Misc
+*.zip
+*.temp
+*.srctrlprj
+*.srctrldb
+*.srctrlbm

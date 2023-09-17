@@ -7,23 +7,84 @@
 #include "Shader.h"
 #include "Util.h"
 
+#include <nuklear/nuklear_def.h>
+#include <nuklear/nuklear_sfml_gl3.h>
 struct Vertex
 {
-    glm::vec3 position;
-    glm::vec3 colour;
+    glm::vec3 position{0.0f};
+    glm::vec3 colour{0.0f};
 };
+
+namespace GUI
+{
+    nk_context* ctx = nullptr;
+
+    int window_flags = NK_WINDOW_BORDER | NK_WINDOW_SCALABLE | NK_WINDOW_MOVABLE |
+                       NK_WINDOW_NO_SCROLLBAR | NK_WINDOW_SCALE_LEFT | NK_WINDOW_MINIMIZABLE;
+
+    void init(sf::Window* window)
+    {
+        ctx = nk_sfml_init(window);
+
+        nk_font_atlas* atlas;
+        nk_sfml_font_stash_begin(&atlas);
+        nk_sfml_font_stash_end();
+    }
+
+    void begin_frame()
+    {
+        assert(ctx);
+        nk_input_begin(ctx);
+    }
+
+    void end_frame()
+    {
+        assert(ctx);
+        nk_input_end(ctx);
+    }
+
+    void shutdown()
+    {
+        assert(ctx);
+        nk_sfml_shutdown();
+    }
+
+    void render()
+    {
+        assert(ctx);
+        nk_sfml_render(NK_ANTI_ALIASING_ON, 0x80000, 0x80000);
+    }
+
+    void event(sf::Event& e)
+    {
+        assert(ctx);
+        nk_sfml_handle_event(&e);
+    }
+
+    void show_debug_window()
+    {
+        assert(ctx);
+        if (nk_begin(ctx, "Debug Window", nk_rect(10, 10, 300, 130), window_flags))
+        {
+            nk_layout_row_dynamic(ctx, 12, 1);
+            nk_labelf(ctx, NK_STATIC, "Hello World");
+            nk_end(ctx);
+        }
+    }
+
+} // namespace GUI
 
 int main()
 {
-    sf::ContextSettings context_shaders;
-    context_shaders.depthBits = 24;
-    context_shaders.stencilBits = 8;
-    context_shaders.antialiasingLevel = 4;
-    context_shaders.majorVersion = 4;
-    context_shaders.minorVersion = 5;
-    context_shaders.attributeFlags = sf::ContextSettings::Core;
+    sf::ContextSettings context_settings;
+    context_settings.depthBits = 24;
+    context_settings.stencilBits = 8;
+    context_settings.antialiasingLevel = 4;
+    context_settings.majorVersion = 4;
+    context_settings.minorVersion = 5;
+    context_settings.attributeFlags = sf::ContextSettings::Core;
 
-    sf::Window window({1280, 720}, "Matt GL", sf::Style::Default, context_shaders);
+    sf::Window window({1280, 720}, "Matt GL", sf::Style::Default, context_settings);
     window.setVerticalSyncEnabled(true);
 
     window.setActive(true);
@@ -38,10 +99,16 @@ int main()
 
     init_opengl_debugging();
 
-    std::vector<Vertex> points = {{{0.5f, 0.5f, 0.0f}, {0.5f, 0.5f, 0.5f}},
-                                  {{-0.5f, 0.5f, 0.0f}, {0.5f, 0.5f, 0.5f}},
-                                  {{-0.5f, -0.5f, 0.0f}, {0.5f, 0.5f, 0.5f}},
-                                  {{0.5f, -0.5f, 0.0f}, {0.5f, 0.5f, 0.5f}}
+    /*
+        Init GUI
+    */
+
+    GUI::init(&window);
+
+    std::vector<Vertex> points = {{{0.5f, 0.5f, 0.0f}, {0.2f, 0.2f, 0.5f}},
+                                  {{-0.5f, 0.5f, 0.0f}, {0.2f, 0.5f, 0.5f}},
+                                  {{-0.5f, -0.5f, 0.0f}, {0.2f, 0.5f, 1.0f}},
+                                  {{0.5f, -0.5f, 0.0f}, {0.2f, 0.5f, 0.5f}}
 
     };
 
@@ -50,65 +117,75 @@ int main()
     // };
     std::vector<GLuint> indices = {0, 1, 2, 2, 3, 0};
 
+    // Declare the OpenGL buffer objects
+    /**/
     GLuint vao = 0;
     GLuint vbo = 0;
     GLuint ebo = 0;
 
-    GLuint buffer = 0;
+    // Create the OpenGL buffer objects
     glCreateVertexArrays(1, &vao);
     glCreateBuffers(1, &vbo);
     glCreateBuffers(1, &ebo);
 
-    /*
-            Buffer the data and attatch to the VAO
-    */
-    // = glBufferData(BUFFER_TYPE, sizeof(GLfloat) * points.size(),  points.data(),
-    // = GL_STATIC_DRAW);
+    // == Init the element buffer ==
+    glNamedBufferStorage(ebo, indices.size() * sizeof(GLuint), indices.data(), 0x0);
+    glVertexArrayElementBuffer(vao, ebo);
+
+    // glBufferData
+    // glNamedBufferStorage(vbo, points.size() * sizeof(Vertex), points.data(), 0x0);
     glNamedBufferStorage(vbo, sizeof(Vertex) * points.size(), points.data(),
                          GL_DYNAMIC_STORAGE_BIT);
+
+    // Attach the vertex array to the vertex buffer and element buffer
     glVertexArrayVertexBuffer(vao, 0, vbo, 0, sizeof(Vertex));
 
-    // = glEnableVertexAttribArray(0);
+    // glEnableVertexAttribArray
     glEnableVertexArrayAttrib(vao, 0);
     glEnableVertexArrayAttrib(vao, 1);
 
-    // = glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, (GLvoid*)0);
+    // glVertexAttribPointer
     glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, offsetof(Vertex, position));
     glVertexArrayAttribFormat(vao, 1, 3, GL_FLOAT, GL_FALSE, offsetof(Vertex, colour));
-
     glVertexArrayAttribBinding(vao, 0, 0);
     glVertexArrayAttribBinding(vao, 1, 0);
 
-    /*
-        Buffer the index buffer and attatch to the VAO
-    */
-    glNamedBufferStorage(ebo, sizeof(GLuint) * indices.size(), indices.data(),
-                         GL_DYNAMIC_STORAGE_BIT);
-    glVertexArrayElementBuffer(vao, ebo);
-
-    /*
-        Buffer the index buffer and attatch to the VAO
-    */
     Shader shader;
     shader.load_from_file("assets/shaders/vertex.glsl", "assets/shaders/fragment.glsl");
 
     while (window.isOpen())
     {
+        GUI::begin_frame();
         sf::Event e;
         while (window.pollEvent(e))
         {
+            GUI::event(e);
             if (e.type == sf::Event::Closed)
             {
                 window.close();
             }
         }
+        if (!window.isOpen())
+        {
+            break;
+        }
+
+        GUI::end_frame();
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        GUI::show_debug_window();
 
         shader.bind();
         glBindVertexArray(vao);
         glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, nullptr);
+        glUseProgram(0);
+        glBindVertexArray(0);
+
+        GUI::render();
 
         window.display();
     }
+
+    GUI::shutdown();
 }
