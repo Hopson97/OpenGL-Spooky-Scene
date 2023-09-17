@@ -122,6 +122,7 @@ int main()
     // ----------------------------------------
     // ==== Create the OpenGL vertex array ====
     // ----------------------------------------
+    std::cout << "Creating vertex arrays" << std::endl;
     GLuint vao = 0;
     GLuint vbo = 0;
     GLuint ebo = 0;
@@ -159,8 +160,10 @@ int main()
     // -----------------------------------
     // ==== Create the OpenGL Texture ====
     // -----------------------------------
-    GLuint texture_handle;
-    glCreateTextures(GL_TEXTURE_2D, 1, &texture_handle);
+    std::cout << "Creating texture" << std::endl;
+
+    GLuint person_texture;
+    glCreateTextures(GL_TEXTURE_2D, 1, &person_texture);
 
     // Load the texture from file
     sf::Image image;
@@ -171,21 +174,72 @@ int main()
     auto h = image.getSize().y;
     auto data = image.getPixelsPtr();
 
-    // Upload the texture to the GPU
-    glTextureStorage2D(texture_handle, 1, GL_RGBA8, w, h);
-    glTextureSubImage2D(texture_handle, 0, 0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    // Set the storage
+    glTextureStorage2D(person_texture, 1, GL_RGBA8, w, h);
+
+    // Upload the texture to the GPU to cover the whole created texture
+    glTextureSubImage2D(person_texture, 0, 0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, data);
 
     // Set texture wrapping and min/mag filters
-    glTextureParameteri(texture_handle, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTextureParameteri(texture_handle, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTextureParameteri(texture_handle, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTextureParameteri(texture_handle, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTextureParameteri(person_texture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(person_texture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(person_texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTextureParameteri(person_texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    // ---------------------------------------
+    // ==== Create the OpenGL Framebuffer ====
+    // ---------------------------------------
+    std::cout << "Creating framebuffer" << std::endl;
+    auto fbo_x = window.getSize().x;
+    auto fbo_y = window.getSize().y;
+    GLuint fbo;
+    glCreateFramebuffers(1, &fbo);
+
+    // Attach the texture to the framebuffer
+    GLuint fbo_texture;
+    glCreateTextures(GL_TEXTURE_2D, 1, &fbo_texture);
+    glTextureStorage2D(fbo_texture, 1, GL_RGB8, fbo_x, fbo_y);
+
+    glTextureParameteri(fbo_texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTextureParameteri(fbo_texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glNamedFramebufferTexture(fbo, GL_COLOR_ATTACHMENT0, fbo_texture, 0);
+
+    // Attatch a render buffer to the frame buffer
+    GLuint rbo;
+    glCreateRenderbuffers(1, &rbo);
+    glNamedRenderbufferStorage(rbo, GL_DEPTH24_STENCIL8, fbo_x, fbo_y);
+    glNamedFramebufferRenderbuffer(fbo, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
+
+    if (auto status =
+            glCheckNamedFramebufferStatus(fbo, GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    {
+        std::cerr << "Framebuffer incomplete. Status: " << status << '\n';
+        return -1;
+    }
+
+    // --------------------------------------------------
+    // ==== Create empty VBO for rendering to window ====
+    // --------------------------------------------------
+    GLuint fbo_vbo;
+    glCreateVertexArrays(1, &fbo_vbo);
 
     // ----------------------
     // ==== Load shaders ====
     // ----------------------
-    Shader shader;
-    shader.load_from_file("assets/shaders/vertex.glsl", "assets/shaders/fragment.glsl");
+    Shader scene_shader;
+    if (!scene_shader.load_from_file("assets/shaders/vertex.glsl",
+                                     "assets/shaders/fragment.glsl"))
+    {
+        return -1;
+    }
+
+    Shader fbo_shader;
+    if (!fbo_shader.load_from_file("assets/shaders/ScreenVertex.glsl",
+                                   "assets/shaders/ScreenFragment.glsl"))
+    {
+        return -1;
+    }
 
     // -------------------
     // ==== Main Loop ====
@@ -214,9 +268,13 @@ int main()
         GUI::show_debug_window();
 
         // Set the render states
-        glBindTextureUnit(0, texture_handle);
-        shader.bind();
+        glBindTextureUnit(0, person_texture);
+        scene_shader.bind();
         glBindVertexArray(vao);
+
+        // Set the framebuffer as the render target and clear
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Render
         glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, nullptr);
@@ -226,10 +284,30 @@ int main()
         glUseProgram(0);
         glBindTextureUnit(0, 0);
 
+        // Prepare final render pass, so unbind the FBO and clear screen
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        // Bind the FBOs texture which will texture the screen quad
+        glBindTextureUnit(0, fbo_texture);
+        fbo_shader.bind();
+
+        glBindVertexArray(fbo_vbo);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
         GUI::render();
 
         window.display();
     }
 
     GUI::shutdown();
+
+    // Cleanup OpenGL
+    glDeleteBuffers(1, &vbo);
+    glDeleteBuffers(1, &ebo);
+    glDeleteVertexArrays(1, &vao);
+
+    glDeleteTextures(1, &person_texture);
+
+    glDeleteFramebuffers(1, &fbo);
 }

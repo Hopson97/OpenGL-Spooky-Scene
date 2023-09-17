@@ -62,6 +62,11 @@ namespace
     }
 } // namespace
 
+Shader::~Shader()
+{
+    glDeleteProgram(program_);
+}
+
 bool Shader::load_from_file(const fs::path& vertex_file_path,
                             const fs::path& fragment_file_path)
 {
