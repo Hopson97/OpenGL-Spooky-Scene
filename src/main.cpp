@@ -25,6 +25,32 @@ struct Transform
     glm::vec3 rotation{0.0f};
 };
 
+template <int Ticks>
+class TimeStep
+{
+  public:
+    template <typename F>
+    void update(F f)
+    {
+        sf::Time time = timer_.getElapsedTime();
+        sf::Time elapsed = time - last_time_;
+        last_time_ = time;
+        lag_ += elapsed;
+        while (lag_ >= timePerUpdate_)
+        {
+            lag_ -= timePerUpdate_;
+            f(dt_.restart());
+        }
+    }
+
+  private:
+    const sf::Time timePerUpdate_ = sf::seconds(1.f / Ticks);
+    sf::Clock timer_;
+    sf::Clock dt_;
+    sf::Time last_time_ = sf::Time::Zero;
+    sf::Time lag_ = sf::Time::Zero;
+};
+
 namespace GUI
 {
     nk_context* ctx = nullptr;
@@ -252,12 +278,14 @@ int main()
         return -1;
     }
 
-    // Entity creation
+    // -----------------------------------
+    // ==== Entity Transform Creation ====
+    // -----------------------------------
     Transform camera_transform;
     Transform quad_transform;
 
     camera_transform.rotation.y = 90.0f;
-    
+
     quad_transform.position.z = 3.0f;
 
     glm::mat4 camera_projection =
@@ -267,6 +295,7 @@ int main()
     // -------------------
     // ==== Main Loop ====
     // -------------------
+    TimeStep<60> time_step;
     while (window.isOpen())
     {
         GUI::begin_frame();
@@ -283,19 +312,86 @@ int main()
         {
             break;
         }
-
         GUI::end_frame();
+        // ---------------
+        // ==== Input ====
+        // ---------------
+        auto x_rot = glm::radians(camera_transform.rotation.x);
+        auto y_rot = glm::radians(camera_transform.rotation.y);
+        auto y_rot90 = glm::radians(camera_transform.rotation.y + 90);
+        auto SPEED = 5.0f;
 
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        // Keyboard Input
+        glm::vec3 move{0.0f};
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
+        {
+            move += glm::vec3{
+                glm::cos(y_rot) * glm::cos(x_rot),
+                0, // glm::sin(x_rot),
+                glm::cos(x_rot) * glm::sin(y_rot),
+            };
+        }
+        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
+        {
+            move -= glm::vec3{
+                glm::cos(y_rot) * glm::cos(x_rot),
+                0, // glm::sin(x_rot),
+                glm::cos(x_rot) * glm::sin(y_rot),
+            };
+        }
 
-        GUI::debug_window(camera_transform);
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
+        {
+            move += glm::vec3{
+                -glm::cos(y_rot90),
+                0,
+                -glm::sin(y_rot90),
+            };
+        }
+        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
+        {
+            move -= glm::vec3{
+                -glm::cos(y_rot90),
+                0,
+                -glm::sin(y_rot90),
+            };
+        }
+
+        move *= SPEED;
+
+        {
+            auto& r = camera_transform.rotation;
+            static auto last_mouse = sf::Mouse::getPosition();
+            auto change = sf::Mouse::getPosition() - last_mouse;
+            r.x -= static_cast<float>(change.y * 0.35);
+            r.y += static_cast<float>(change.x * 0.35);
+           // sf::Mouse::setPosition({(int)window.getSize().x / 2, (int)window.getSize().y / 2},
+            //                       window);
+            last_mouse = sf::Mouse::getPosition();
+
+            r.x = glm::clamp(r.x, -89.9f, 89.9f);
+            if (r.y > 360.0f)
+            {
+                r.y = 0.0f;
+            }
+            else if (r.y < 0.0f)
+            {
+                r.y = 360.0f;
+
+            }
+        }
 
 
-        // Vertex transform matrix setup
+        // Update...
+        time_step.update(
+            [&](auto dt) { camera_transform.position += move * dt.asSeconds();
+            });
+
+        // -------------------------------
+        // ==== Transform Calculation ====
+        // -------------------------------
         glm::mat4 view_matrix{1.0f};
         {
-            auto x_rot = glm::radians(camera_transform.rotation.x);
-            auto y_rot = glm::radians(camera_transform.rotation.y);
 
             glm::vec3 front = {
                 glm::cos(y_rot) * glm::cos(x_rot),
@@ -315,40 +411,44 @@ int main()
         matrix = glm::rotate(matrix, glm::radians(quad_transform.rotation.y), {0, 1, 0});
         matrix = glm::rotate(matrix, glm::radians(quad_transform.rotation.z), {0, 0, 1});
 
-        // Set the render states
-        glBindTextureUnit(0, person_texture);
-        scene_shader.bind();
-        glBindVertexArray(vao);
-
-        scene_shader.set_uniform("projection_matrix", camera_projection);
-        scene_shader.set_uniform("view_matrix", view_matrix);
-        scene_shader.set_uniform("model_matrix", matrix);
-
+        // -----------------------
+        // ==== Render to FBO ====
+        // -----------------------
         // Set the framebuffer as the render target and clear
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        // Set the render states
+        glBindTextureUnit(0, person_texture);
+        glBindVertexArray(vao);
+        scene_shader.bind();
+        scene_shader.set_uniform("projection_matrix", camera_projection);
+        scene_shader.set_uniform("view_matrix", view_matrix);
+        scene_shader.set_uniform("model_matrix", matrix);
+
         // Render
         glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, nullptr);
 
-        // Un-set render states
-        glBindVertexArray(0);
-        glUseProgram(0);
-        glBindTextureUnit(0, 0);
-
-        // Prepare final render pass, so unbind the FBO and clear screen
+        // --------------------------
+        // ==== Render to window ====
+        // --------------------------
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Bind the FBOs texture which will texture the screen quad
         glBindTextureUnit(0, fbo_texture);
+        glBindVertexArray(fbo_vbo);
         fbo_shader.bind();
 
-        glBindVertexArray(fbo_vbo);
+        // Render
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
-        GUI::render();
+        // --------------------------
+        // ==== End Frame ====
+        // --------------------------
+        GUI::debug_window(camera_transform);
 
+        GUI::render();
         window.display();
     }
 
