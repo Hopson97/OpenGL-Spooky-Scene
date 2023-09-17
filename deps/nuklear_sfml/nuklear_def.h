@@ -1,3 +1,4 @@
+
 #define NK_INCLUDE_FIXED_TYPES
 #define NK_INCLUDE_STANDARD_IO
 #define NK_INCLUDE_STANDARD_VARARGS
@@ -5,8 +6,10 @@
 #define NK_INCLUDE_VERTEX_BUFFER_OUTPUT
 #define NK_INCLUDE_FONT_BAKING
 #define NK_INCLUDE_DEFAULT_FONT
-#define NK_INCLUDE
+#define NK_MEMSET
 
-#define NK_IMPLEMENTATION
-
+#ifndef WIN32
+#include <nuklear/nuklear.h>
+#else
 #include <nuklear.h>
+#endif

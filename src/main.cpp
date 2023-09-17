@@ -3,18 +3,26 @@
 #include <SFML/Window/Window.hpp>
 #include <glad/glad.h>
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 #include "GLDebugEnable.h"
 #include "Shader.h"
 #include "Util.h"
 
-#include <nuklear/nuklear_def.h>
-#include <nuklear/nuklear_sfml_gl3.h>
+#include <nuklear_sfml/nuklear_def.h>
+#include <nuklear_sfml/nuklear_sfml_gl3.h>
+
 struct Vertex
 {
     glm::vec3 position{0.0f};
     glm::vec3 colour{0.0f};
     glm::vec2 texture{0.0f};
+};
+
+struct Transform
+{
+    glm::vec3 position{0.0f};
+    glm::vec3 rotation{0.0f};
 };
 
 namespace GUI
@@ -63,13 +71,16 @@ namespace GUI
         nk_sfml_handle_event(&e);
     }
 
-    void show_debug_window()
+    void debug_window(const Transform& transform)
     {
         assert(ctx);
+        auto r = transform.rotation;
+        auto p = transform.position;
         if (nk_begin(ctx, "Debug Window", nk_rect(10, 10, 300, 130), window_flags))
         {
             nk_layout_row_dynamic(ctx, 12, 1);
-            nk_labelf(ctx, NK_STATIC, "Hello World");
+            nk_labelf(ctx, NK_STATIC, "Position: (%f, %f, %f)", p.x, p.y, p.z);
+            nk_labelf(ctx, NK_STATIC, "Rotation: (%f, %f, %f)", r.x, r.y, r.z);
             nk_end(ctx);
         }
     }
@@ -241,6 +252,18 @@ int main()
         return -1;
     }
 
+    // Entity creation
+    Transform camera_transform;
+    Transform quad_transform;
+
+    camera_transform.rotation.y = 90.0f;
+    
+    quad_transform.position.z = 3.0f;
+
+    glm::mat4 camera_projection =
+        glm::perspective(glm::radians(75.0f), 1280.0f / 720.0f, 1.0f, 100.0f);
+    glm::vec3 up = {0, 1, 0};
+
     // -------------------
     // ==== Main Loop ====
     // -------------------
@@ -265,12 +288,41 @@ int main()
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        GUI::show_debug_window();
+        GUI::debug_window(camera_transform);
+
+
+        // Vertex transform matrix setup
+        glm::mat4 view_matrix{1.0f};
+        {
+            auto x_rot = glm::radians(camera_transform.rotation.x);
+            auto y_rot = glm::radians(camera_transform.rotation.y);
+
+            glm::vec3 front = {
+                glm::cos(y_rot) * glm::cos(x_rot),
+                glm::sin(x_rot),
+                glm::sin(y_rot) * glm::cos(x_rot),
+            };
+            glm::vec3 centre = camera_transform.position + glm::normalize(front);
+
+            view_matrix = glm::lookAt(camera_transform.position, centre, up);
+        }
+
+        glm::mat4 matrix{1.0f};
+
+        matrix = glm::translate(matrix, quad_transform.position);
+
+        matrix = glm::rotate(matrix, glm::radians(quad_transform.rotation.x), {1, 0, 0});
+        matrix = glm::rotate(matrix, glm::radians(quad_transform.rotation.y), {0, 1, 0});
+        matrix = glm::rotate(matrix, glm::radians(quad_transform.rotation.z), {0, 0, 1});
 
         // Set the render states
         glBindTextureUnit(0, person_texture);
         scene_shader.bind();
         glBindVertexArray(vao);
+
+        scene_shader.set_uniform("projection_matrix", camera_projection);
+        scene_shader.set_uniform("view_matrix", view_matrix);
+        scene_shader.set_uniform("model_matrix", matrix);
 
         // Set the framebuffer as the render target and clear
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);

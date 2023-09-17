@@ -1,2 +1,2 @@
 add_subdirectory(glad)
-add_subdirectory(nuklear)
+add_subdirectory(nuklear_sfml)

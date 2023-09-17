@@ -1,8 +1,10 @@
 #include "Shader.h"
 
-#include "Util.h"
 #include <cstring>
 #include <iostream>
+#include <glm/gtc/type_ptr.hpp>
+
+#include "Util.h"
 
 namespace
 {
@@ -127,4 +129,29 @@ bool Shader::load_from_file(const fs::path& vertex_file_path,
 void Shader::bind() const
 {
     glUseProgram(program_);
+}
+
+void Shader::set_uniform(const std::string& name, const glm::mat4& matrix)
+{
+    auto location = get_uniform_location(name);
+    glProgramUniformMatrix4fv(program_, location, 1, GL_FALSE, glm::value_ptr(matrix));
+}
+
+GLuint Shader::get_uniform_location(const std::string& name)
+{
+    auto itr = uniform_locations_.find(name);
+    if (itr == uniform_locations_.end())
+    {
+        auto location = glGetUniformLocation(program_, name.c_str());
+        if (location == -1)
+        {
+            std::cerr << "Cannot find uniform location '" << name << "'\n";
+                return 0;
+        }
+        uniform_locations_.insert({name, location});
+
+        return location;
+    }
+
+    return itr->second;
 }

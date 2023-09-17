@@ -47,7 +47,7 @@ target_include_directories(
 #Finally
 target_link_libraries(${PROJECT_NAME} 
     glad 
-    nuklear
+    nuklear_sfml
     Threads::Threads 
     ${CMAKE_DL_LIBS}
     ${CONAN_LIBS}

@@ -8,6 +8,8 @@ The easiest way to build is to use [vcpkg](https://vcpkg.io/en/index.html) and i
 
 ```bash
 vcpkg install sfml
+vcpkg install nuklear
+vcpkg install glm
 vcpkg integrate install
 ```
 
@@ -19,6 +21,8 @@ Go into the project properies and under `C/C++ > General`, add the deps/ directo
 
 
 Finally, under `Linker > Input`, add OpenGL32.lib as an additional dependancy. 
+
+Under "Project -> Properties -> C/C++ -> Preprocessor -> Preprocessor Definitions" add _CRT_SECURE_NO_WARNINGS
 
 ### Linux
 
