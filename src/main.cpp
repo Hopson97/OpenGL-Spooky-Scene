@@ -4,24 +4,16 @@
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <nuklear_sfml/nuklear_def.h>
+#include <nuklear_sfml/nuklear_sfml_gl3.h>
 
 #include "GLDebugEnable.h"
 #include "Shader.h"
 #include "Util.h"
-
-#include <nuklear_sfml/nuklear_def.h>
-#include <nuklear_sfml/nuklear_sfml_gl3.h>
+#include "MeshGeneration.h"
 
 namespace
 {
-
-    struct Vertex
-    {
-        glm::vec3 position{0.0f};
-        glm::vec3 colour{0.0f};
-        glm::vec2 texture{0.0f};
-    };
-
     struct Transform
     {
         glm::vec3 position{0.0f};
@@ -54,7 +46,7 @@ namespace
         sf::Time lag_ = sf::Time::Zero;
     };
 
-    glm::vec3 get_keyboard_input(const Transform& transform)
+    glm::vec3 get_keyboard_input(const Transform& transform, bool flying)
     {
         auto x_rot = glm::radians(transform.rotation.x);
         auto y_rot = glm::radians(transform.rotation.y);
@@ -66,7 +58,7 @@ namespace
         {
             move += glm::vec3{
                 glm::cos(y_rot) * glm::cos(x_rot),
-                0, // glm::sin(x_rot),
+                flying ? glm::sin(x_rot) : 0.0f,
                 glm::cos(x_rot) * glm::sin(y_rot),
             };
         }
@@ -74,7 +66,7 @@ namespace
         {
             move -= glm::vec3{
                 glm::cos(y_rot) * glm::cos(x_rot),
-                0, // glm::sin(x_rot),
+                flying ? glm::sin(x_rot) : 0.0f,
                 glm::cos(x_rot) * glm::sin(y_rot),
             };
         }
@@ -216,6 +208,9 @@ int main()
 
     GUI::init(&window);
 
+    Mesh terrain_mesh = generate_terrain_mesh(20, 20);
+
+    /*
     std::vector<Vertex> points = {{{0.5f, 0.5f, 0.0f}, {0.2f, 0.2f, 0.5f}, {0.0f, 1.0f}},
                                   {{-0.5f, 0.5f, 0.0f}, {0.2f, 0.5f, 0.5f}, {1.0f, 1.0f}},
                                   {{-0.5f, -0.5f, 0.0f}, {0.2f, 0.5f, 1.0f}, {1.0f, 0.0f}},
@@ -227,6 +222,7 @@ int main()
     //     , , , ,
     // };
     std::vector<GLuint> indices = {0, 1, 2, 2, 3, 0};
+    */
 
     // ----------------------------------------
     // ==== Create the OpenGL vertex array ====
@@ -242,12 +238,15 @@ int main()
     glCreateBuffers(1, &ebo);
 
     // == Init the element buffer ==
-    glNamedBufferStorage(ebo, indices.size() * sizeof(GLuint), indices.data(), 0x0);
+    glNamedBufferStorage(ebo, terrain_mesh.indices.size() * sizeof(GLuint),
+                         terrain_mesh.indices.data(),
+                         0x0);
     glVertexArrayElementBuffer(vao, ebo);
 
     // glBufferData
     // glNamedBufferStorage(vbo, points.size() * sizeof(Vertex), points.data(), 0x0);
-    glNamedBufferStorage(vbo, sizeof(Vertex) * points.size(), points.data(),
+    glNamedBufferStorage(vbo, sizeof(Vertex) * terrain_mesh.vertices.size(),
+                         terrain_mesh.vertices.data(),
                          GL_DYNAMIC_STORAGE_BIT);
 
     // Attach the vertex array to the vertex buffer and element buffer
@@ -261,7 +260,7 @@ int main()
     // glVertexAttribPointer
     glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, offsetof(Vertex, position));
     glVertexArrayAttribFormat(vao, 1, 3, GL_FLOAT, GL_FALSE, offsetof(Vertex, colour));
-    glVertexArrayAttribFormat(vao, 2, 2, GL_FLOAT, GL_FALSE, offsetof(Vertex, texture));
+    glVertexArrayAttribFormat(vao, 2, 2, GL_FLOAT, GL_FALSE, offsetof(Vertex, texture_coord));
     glVertexArrayAttribBinding(vao, 0, 0);
     glVertexArrayAttribBinding(vao, 1, 0);
     glVertexArrayAttribBinding(vao, 2, 0);
@@ -357,6 +356,7 @@ int main()
     Transform quad_transform;
 
     camera_transform.rotation.y = 90.0f;
+    camera_transform.position.y = 1.5f;
 
     quad_transform.position.z = 3.0f;
 
@@ -389,7 +389,7 @@ int main()
         // ==== Input ====
         // ---------------
         auto SPEED = 5.0f;
-        auto translate = get_keyboard_input(camera_transform) * SPEED;
+        auto translate = get_keyboard_input(camera_transform, true) * SPEED;
         get_mouse_move_input(camera_transform, window);
 
         // Update...
@@ -437,7 +437,7 @@ int main()
         scene_shader.set_uniform("model_matrix", matrix);
 
         // Render
-        glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, nullptr);
+        glDrawElements(GL_TRIANGLES, terrain_mesh.indices.size(), GL_UNSIGNED_INT, nullptr);
 
         // --------------------------
         // ==== Render to window ====
