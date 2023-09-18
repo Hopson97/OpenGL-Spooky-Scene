@@ -55,6 +55,7 @@ namespace
 
     glm::vec3 get_keyboard_input(const Transform& transform, bool flying)
     {
+
         auto x_rot = glm::radians(transform.rotation.x);
         auto y_rot = glm::radians(transform.rotation.y);
         auto y_rot90 = glm::radians(transform.rotation.y + 90);
@@ -95,6 +96,11 @@ namespace
             };
         }
 
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::LControl))
+        {
+            move *= 10.0f;
+        }
+
         return move;
     }
 
@@ -105,9 +111,8 @@ namespace
         auto change = sf::Mouse::getPosition(window) - last_mouse;
         r.x -= static_cast<float>(change.y * 0.35);
         r.y += static_cast<float>(change.x * 0.35);
-        // sf::Mouse::setPosition({(int)window.getSize().x / 2, (int)window.getSize().y /
-        // 2},
-        //                       window);
+        sf::Mouse::setPosition({(int)window.getSize().x / 2, (int)window.getSize().y / 2},
+                               window);
         last_mouse = sf::Mouse::getPosition(window);
 
         r.x = glm::clamp(r.x, -89.9f, 89.9f);
@@ -196,6 +201,7 @@ int main()
 
     sf::Window window({1280, 720}, "Matt GL", sf::Style::Default, context_settings);
     window.setVerticalSyncEnabled(true);
+    bool mouse_locked = false;
 
     window.setActive(true);
 
@@ -284,7 +290,7 @@ int main()
 
     // Set the storage
     glTextureStorage2D(person_texture, 8, GL_RGBA8, w, h);
-    //glGenerateMipmap(GL_TEXTURE_2D);
+    // glGenerateMipmap(GL_TEXTURE_2D);
 
     // Upload the texture to the GPU to cover the whole created texture
     glTextureSubImage2D(person_texture, 0, 0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, data);
@@ -381,9 +387,12 @@ int main()
         {
             GUI::event(e);
             if (e.type == sf::Event::Closed)
-            {
                 window.close();
-            }
+            else if (e.type == sf::Event::KeyReleased)
+                if (e.key.code == sf::Keyboard::Escape)
+                    window.close();
+                else if (e.key.code == sf::Keyboard::L)
+                    mouse_locked = !mouse_locked;
         }
         if (!window.isOpen())
         {
@@ -395,7 +404,16 @@ int main()
         // ---------------
         auto SPEED = 5.0f;
         auto translate = get_keyboard_input(camera_transform, true) * SPEED;
-        get_mouse_move_input(camera_transform, window);
+
+        if (!mouse_locked)
+        {
+            window.setMouseCursorVisible(false);
+            get_mouse_move_input(camera_transform, window);
+        }
+        else
+        {
+            window.setMouseCursorVisible(true);
+        }
 
         // ----------------------------------
         // ==== Update w/ Fixed timestep ====
@@ -461,9 +479,17 @@ int main()
         scene_shader.set_uniform("projection_matrix", camera_projection);
         scene_shader.set_uniform("view_matrix", view_matrix);
 
-        scene_shader.set_uniform("light_colour", glm::vec3{1.0, 1.0, 1.0});
         scene_shader.set_uniform("eye_position", camera_transform.position);
-        scene_shader.set_uniform("light_position", light_transform.position);
+
+        scene_shader.set_uniform("material.ambient", glm::vec3{1.0f, 1.0f, 1.0f});
+        scene_shader.set_uniform("material.diffuse", glm::vec3{1.0f, 1.0f, 1.0f});
+        scene_shader.set_uniform("material.specular", glm::vec3{0.5f, 0.5f, 0.5f});
+        scene_shader.set_uniform("material.shininess", 32.0f);
+
+        scene_shader.set_uniform("light.ambient", glm::vec3{0.2f, 0.2f, 0.2f});
+        scene_shader.set_uniform("light.diffuse", glm::vec3{0.5f, 0.9f, 0.5f});
+        scene_shader.set_uniform("light.specular", glm::vec3{1.0f, 1.0f, 1.0f});
+        scene_shader.set_uniform("light.position", light_transform.position);
 
         // Set the terrain trasform and render
         scene_shader.set_uniform("is_light", false);

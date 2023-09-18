@@ -9,11 +9,29 @@ in vec3 pass_fragment_coord;
 
 out vec4 out_colour;
 
+struct Material 
+{
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+    float shininess;
+};
+
+struct Light 
+{
+    vec3 position;
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+};
+
+uniform Material material;
+uniform Light light;  
+
 uniform sampler2D diffuse_texture;
 
-uniform vec3 light_colour;
 uniform vec3 eye_position;
-uniform vec3 light_position;
+
 
 uniform bool is_light;
 
@@ -30,19 +48,21 @@ void main() {
 
     if (!is_light) { 
         
-        vec3 ambient_light = 0.1 * light_colour;
 
         // Diffuse lighting
         vec3 normal = normalize(pass_normal);
-        vec3 light_direction = normalize(light_position - pass_fragment_coord);
-        vec3 diffuse = light_colour * max(dot(normal, light_direction), 0.0);
+        vec3 light_direction = normalize(light.position - pass_fragment_coord);
+        float diff = max(dot(normal, light_direction), 0.0);
 
         // Specular Lighting
         vec3 eye_direction = normalize(eye_position - pass_fragment_coord);
         vec3 reflect_direction = reflect(-light_direction, normal);
-
-        float spec = pow(max(dot(eye_direction, reflect_direction), 0.0), 64.0);
-        vec3 specular = 0.5 * spec * light_colour;
+        float spec = pow(max(dot(eye_direction, reflect_direction), 0.0), material.shininess);
+        
+        
+        vec3 ambient_light = material.ambient * light.ambient;
+        vec3 diffuse = light.diffuse * diff * material.diffuse;
+        vec3 specular = spec * light.specular * material.specular;
         
 
 
