@@ -8,9 +8,9 @@
 #include <nuklear_sfml/nuklear_sfml_gl3.h>
 
 #include "GLDebugEnable.h"
+#include "MeshGeneration.h"
 #include "Shader.h"
 #include "Util.h"
-#include "MeshGeneration.h"
 
 namespace
 {
@@ -18,6 +18,13 @@ namespace
     {
         glm::vec3 position{0.0f};
         glm::vec3 rotation{0.0f};
+    };
+
+    struct VertexArray
+    {
+        GLuint vao = 0;
+        GLuint vbo = 0;
+        GLuint ebo = 0;
     };
 
     template <int Ticks>
@@ -198,67 +205,65 @@ int main()
         return -1;
     }
     glViewport(0, 0, 1280, 720);
-    // glClearColor(1.0, 1.0, 1.0, 1.0);
-
     init_opengl_debugging();
-
-    /*
-        Init GUI
-    */
-
     GUI::init(&window);
 
-    Mesh terrain_mesh = generate_terrain_mesh(20, 20);
-
-    /*
-    
-
-    // std::vector<GLfloat> points = {
-    //     , , , ,
-    // };
-    
-    */
+    // Generate some meshes...
+    Mesh terrain_mesh = generate_terrain_mesh(50, 100);
+    Mesh light_mesh = generate_cube_mesh({0.6f, 0.8f, 1.0f});
 
     // ----------------------------------------
     // ==== Create the OpenGL vertex array ====
     // ----------------------------------------
-    std::cout << "Creating vertex arrays" << std::endl;
-    GLuint vao = 0;
-    GLuint vbo = 0;
-    GLuint ebo = 0;
+    auto buffer_mesh = [](Mesh& mesh)
+    {
+        std::cout << "Creating vertex arrays" << std::endl;
+        VertexArray vertex_array;
 
-    // Create the OpenGL buffer objects
-    glCreateVertexArrays(1, &vao);
-    glCreateBuffers(1, &vbo);
-    glCreateBuffers(1, &ebo);
+        // Create the OpenGL buffer objects
+        glCreateVertexArrays(1, &vertex_array.vao);
+        glCreateBuffers(1, &vertex_array.vbo);
+        glCreateBuffers(1, &vertex_array.ebo);
+        auto vao = vertex_array.vao;
 
-    // Element buffer
-    glNamedBufferStorage(ebo, terrain_mesh.indices.size() * sizeof(GLuint),
-                         terrain_mesh.indices.data(),
-                         0x0);
-    glVertexArrayElementBuffer(vao, ebo);
+        // Element buffer
+        glNamedBufferStorage(vertex_array.ebo, mesh.indices.size() * sizeof(GLuint),
+                             mesh.indices.data(), 0x0);
+        glVertexArrayElementBuffer(vao, vertex_array.ebo);
 
-    // glBufferData
-    // glNamedBufferStorage(vbo, points.size() * sizeof(Vertex), points.data(), 0x0);
-    glNamedBufferStorage(vbo, sizeof(Vertex) * terrain_mesh.vertices.size(),
-                         terrain_mesh.vertices.data(),
-                         GL_DYNAMIC_STORAGE_BIT);
+        // glBufferData
+        // glNamedBufferStorage(vbo, points.size() * sizeof(Vertex), points.data(), 0x0);
+        glNamedBufferStorage(vertex_array.vbo, sizeof(Vertex) * mesh.vertices.size(),
+                             mesh.vertices.data(), GL_DYNAMIC_STORAGE_BIT);
 
-    // Attach the vertex array to the vertex buffer and element buffer
-    glVertexArrayVertexBuffer(vao, 0, vbo, 0, sizeof(Vertex));
+        // Attach the vertex array to the vertex buffer and element buffer
+        glVertexArrayVertexBuffer(vao, 0, vertex_array.vbo, 0, sizeof(Vertex));
 
-    // glEnableVertexAttribArray
-    glEnableVertexArrayAttrib(vao, 0);
-    glEnableVertexArrayAttrib(vao, 1);
-    glEnableVertexArrayAttrib(vao, 2);
+        // glEnableVertexAttribArray
+        glEnableVertexArrayAttrib(vao, 0);
+        glEnableVertexArrayAttrib(vao, 1);
+        glEnableVertexArrayAttrib(vao, 2);
+        glEnableVertexArrayAttrib(vao, 3);
 
-    // glVertexAttribPointer
-    glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, offsetof(Vertex, position));
-    glVertexArrayAttribFormat(vao, 1, 3, GL_FLOAT, GL_FALSE, offsetof(Vertex, colour));
-    glVertexArrayAttribFormat(vao, 2, 2, GL_FLOAT, GL_FALSE, offsetof(Vertex, texture_coord));
-    glVertexArrayAttribBinding(vao, 0, 0);
-    glVertexArrayAttribBinding(vao, 1, 0);
-    glVertexArrayAttribBinding(vao, 2, 0);
+        // glVertexAttribPointer
+        glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, offsetof(Vertex, position));
+        glVertexArrayAttribFormat(vao, 1, 3, GL_FLOAT, GL_FALSE, offsetof(Vertex, colour));
+        glVertexArrayAttribFormat(vao, 2, 2, GL_FLOAT, GL_FALSE,
+                                  offsetof(Vertex, texture_coord));
+        glVertexArrayAttribFormat(vao, 3, 3, GL_FLOAT, GL_FALSE, offsetof(Vertex, normal));
+        glVertexArrayAttribBinding(vao, 0, 0);
+        glVertexArrayAttribBinding(vao, 1, 0);
+        glVertexArrayAttribBinding(vao, 2, 0);
+        glVertexArrayAttribBinding(vao, 3, 0);
+
+        return vertex_array;
+    };
+
+    // Terrain
+    auto terrain_vertex_array = buffer_mesh(terrain_mesh);
+
+    // The light
+    auto light_vertex_array = buffer_mesh(light_mesh);
 
     // -----------------------------------
     // ==== Create the OpenGL Texture ====
@@ -348,12 +353,13 @@ int main()
     // ==== Entity Transform Creation ====
     // -----------------------------------
     Transform camera_transform;
-    Transform quad_transform;
+    Transform terrain_transform;
+    Transform light_transform;
 
     camera_transform.rotation.y = 90.0f;
     camera_transform.position.y = 1.5f;
 
-    quad_transform.position.z = 3.0f;
+    terrain_transform.position.y -= 5.0f;
 
     glm::mat4 camera_projection =
         glm::perspective(glm::radians(75.0f), 1280.0f / 720.0f, 1.0f, 100.0f);
@@ -363,8 +369,10 @@ int main()
     // ==== Main Loop ====
     // -------------------
     TimeStep<60> time_step;
+    sf::Clock game_time;
     while (window.isOpen())
     {
+        auto game_time_now = game_time.getElapsedTime();
         GUI::begin_frame();
         sf::Event e;
         while (window.pollEvent(e))
@@ -387,9 +395,19 @@ int main()
         auto translate = get_keyboard_input(camera_transform, true) * SPEED;
         get_mouse_move_input(camera_transform, window);
 
-        // Update...
-        time_step.update([&](auto dt)
-                         { camera_transform.position += translate * dt.asSeconds(); });
+        // ----------------------------------
+        // ==== Update w/ Fixed timestep ====
+        // ----------------------------------
+        time_step.update(
+            [&](auto dt)
+            {
+                camera_transform.position += translate * dt.asSeconds();
+
+                light_transform.position.x +=
+                    glm::sin(game_time_now.asSeconds() * 0.25f) * dt.asSeconds() * 10.0f;
+                light_transform.position.z +=
+                    glm::cos(game_time_now.asSeconds() * 0.25f) * dt.asSeconds() * 10.0f;
+            });
 
         // -------------------------------
         // ==== Transform Calculation ====
@@ -408,13 +426,22 @@ int main()
             view_matrix = glm::lookAt(camera_transform.position, centre, up);
         }
 
-        glm::mat4 matrix{1.0f};
+        // Calculate the terrain postion and rotation
+        glm::mat4 terrain_mat{1.0f};
 
-        matrix = glm::translate(matrix, quad_transform.position);
+        terrain_mat = glm::translate(terrain_mat, terrain_transform.position);
 
-        matrix = glm::rotate(matrix, glm::radians(quad_transform.rotation.x), {1, 0, 0});
-        matrix = glm::rotate(matrix, glm::radians(quad_transform.rotation.y), {0, 1, 0});
-        matrix = glm::rotate(matrix, glm::radians(quad_transform.rotation.z), {0, 0, 1});
+        // Calculate the light postion and rotation
+        glm::mat4 light_mat{1.0f};
+
+        light_mat = glm::translate(light_mat, light_transform.position);
+
+        light_mat =
+            glm::rotate(light_mat, glm::radians(light_transform.rotation.x), {1, 0, 0});
+        light_mat =
+            glm::rotate(light_mat, glm::radians(light_transform.rotation.y), {0, 1, 0});
+        light_mat =
+            glm::rotate(light_mat, glm::radians(light_transform.rotation.z), {0, 0, 1});
 
         // -----------------------
         // ==== Render to FBO ====
@@ -422,17 +449,25 @@ int main()
         // Set the framebuffer as the render target and clear
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glEnable(GL_DEPTH_TEST);
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
 
         // Set the render states
         glBindTextureUnit(0, person_texture);
-        glBindVertexArray(vao);
         scene_shader.bind();
         scene_shader.set_uniform("projection_matrix", camera_projection);
         scene_shader.set_uniform("view_matrix", view_matrix);
-        scene_shader.set_uniform("model_matrix", matrix);
 
-        // Render
+        // Set the terrain trasform and render
+        scene_shader.set_uniform("model_matrix", terrain_mat);
+        glBindVertexArray(terrain_vertex_array.vao);
         glDrawElements(GL_TRIANGLES, terrain_mesh.indices.size(), GL_UNSIGNED_INT, nullptr);
+
+        // Set the light trasform and render
+        scene_shader.set_uniform("model_matrix", light_mat);
+        glBindVertexArray(light_vertex_array.vao);
+        glDrawElements(GL_TRIANGLES, light_mesh.indices.size(), GL_UNSIGNED_INT, nullptr);
 
         // --------------------------
         // ==== Render to window ====
@@ -460,9 +495,9 @@ int main()
     GUI::shutdown();
 
     // Cleanup OpenGL
-    glDeleteBuffers(1, &vbo);
-    glDeleteBuffers(1, &ebo);
-    glDeleteVertexArrays(1, &vao);
+    glDeleteBuffers(1, &terrain_vertex_array.vbo);
+    glDeleteBuffers(1, &terrain_vertex_array.ebo);
+    glDeleteVertexArrays(1, &terrain_vertex_array.vao);
 
     glDeleteTextures(1, &person_texture);
 

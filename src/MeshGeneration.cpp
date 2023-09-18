@@ -15,6 +15,63 @@ Mesh generate_quad_mesh(float size)
     return mesh;
 }
 
+Mesh generate_cube_mesh(const glm::vec3& dimensions)
+{
+    Mesh mesh;
+
+    float w = dimensions.x;
+    float h = dimensions.y;
+    float d = dimensions.z;
+
+    // clang-format off
+    mesh.vertices = {
+        {{w, h, d}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}},  
+        {{0, h, d}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}},
+        {{0, 0, d}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},  
+        {{w, 0, d}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},
+
+        {{0, h, d}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}, {-1.0f, 0.0f, 0.0f}}, 
+        {{0, h, 0}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}, {-1.0f, 0.0f, 0.0f}},
+        {{0, 0, 0}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}, {-1.0f, 0.0f, 0.0f}}, 
+        {{0, 0, d}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}, {-1.0f, 0.0f, 0.0f}},
+
+        {{0, h, 0}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, -1.0f}}, 
+        {{w, h, 0}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}},
+        {{w, 0, 0}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, -1.0f}}, 
+        {{0, 0, 0}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, -1.0f}},
+
+        {{w, h, 0}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}},  
+        {{w, h, d}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}},
+        {{w, 0, d}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}, {1.0f, 0.0f, 0.0f}},  
+        {{w, 0, 0}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}, {1.0f, 0.0f, 0.0f}},
+
+        {{w, h, 0}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, 1.0f, 0.0f}},  
+        {{0, h, 0}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}},
+        {{0, h, d}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},  
+        {{w, h, d}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
+
+        {{0, 0, 0}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, -1.0f, 0.0f}}, 
+        {{w, 0, 0}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}, {0.0f, -1.0f, 0.0f}},
+        {{w, 0, d}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}, {0.0f, -1.0f, 0.0f}}, 
+        {{0, 0, d}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}, {0.0f, -1.0f, 0.0f}},
+    };
+    // clang-format on
+
+    int index = 0;
+    for (int i = 0; i < 6; i++)
+    {
+        mesh.indices.push_back(index);
+        mesh.indices.push_back(index + 1);
+        mesh.indices.push_back(index + 2);
+        mesh.indices.push_back(index + 2);
+        mesh.indices.push_back(index + 3);
+        mesh.indices.push_back(index);
+        index += 4;
+    }
+
+    return mesh;
+}
+
 Mesh generate_terrain_mesh(int size, int edgeVertices)
 {
     float fEdgeVertexCount = static_cast<float>(edgeVertices);
@@ -63,6 +120,6 @@ Mesh generate_terrain_mesh(int size, int edgeVertices)
             mesh.indices.push_back(bottomRight);
         }
     }
-    
+
     return mesh;
 }

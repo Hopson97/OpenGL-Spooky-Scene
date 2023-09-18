@@ -2,11 +2,12 @@
 
 
 in vec3 pass_colour;
-in vec2 pass_texture;
+in vec2 pass_texture_coord;
+in vec3 pass_normal;
 
 out vec4 out_colour;
 
-uniform sampler2D texture_sampler;
+uniform sampler2D diffuse_texture;
 
 void main() {
    // out_colour = vec4(1.0, 0.0, 0.0, 1.0);
@@ -21,5 +22,5 @@ void main() {
 
     out_colour = 
         vec4(pass_colour, 1.0) * 
-        texture(texture_sampler, pass_texture);
+        texture(diffuse_texture, pass_texture_coord);
 }
