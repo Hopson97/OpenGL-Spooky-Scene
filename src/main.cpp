@@ -27,6 +27,14 @@ namespace
         GLuint ebo = 0;
     };
 
+    struct Settings
+    {
+        bool wireframe = false;
+        glm::vec3 light_ambient{0.6f, 0.6f, 0.6f};
+        glm::vec3 light_diffuse{0.5f, 0.9f, 0.5f};
+        glm::vec3 light_specular{1.0f, 1.0f, 1.0f};
+    };
+
     template <int Ticks>
     class TimeStep
     {
@@ -173,7 +181,7 @@ namespace GUI
         nk_sfml_handle_event(&e);
     }
 
-    void debug_window(const Transform& transform)
+    void debug_window(const Transform& transform, Settings& settings)
     {
         assert(ctx);
         auto r = transform.rotation;
@@ -183,6 +191,8 @@ namespace GUI
             nk_layout_row_dynamic(ctx, 12, 1);
             nk_labelf(ctx, NK_STATIC, "Position: (%f, %f, %f)", p.x, p.y, p.z);
             nk_labelf(ctx, NK_STATIC, "Rotation: (%f, %f, %f)", r.x, r.y, r.z);
+
+
             nk_end(ctx);
         }
     }
@@ -217,6 +227,7 @@ int main()
     // Generate some meshes...
     Mesh terrain_mesh = generate_terrain_mesh(50, 100);
     Mesh light_mesh = generate_cube_mesh({0.6f, 0.8f, 1.0f});
+    Mesh box_mesh = generate_cube_mesh({1.0f, 1.0f, 1.0f});
 
     // ----------------------------------------
     // ==== Create the OpenGL vertex array ====
@@ -265,11 +276,9 @@ int main()
         return vertex_array;
     };
 
-    // Terrain
     auto terrain_vertex_array = buffer_mesh(terrain_mesh);
-
-    // The light
     auto light_vertex_array = buffer_mesh(light_mesh);
+    auto box_vertex_array = buffer_mesh(box_mesh);
 
     // -----------------------------------
     // ==== Create the OpenGL Texture ====
@@ -281,9 +290,7 @@ int main()
 
     // Load the texture from file
     sf::Image image;
-    image.loadFromFile("assets/textures/person.png");
-    image.flipVertically();
-    image.flipHorizontally();
+    image.loadFromFile("assets/textures/crate.png");
     auto w = image.getSize().x;
     auto h = image.getSize().y;
     auto data = image.getPixelsPtr();
@@ -301,6 +308,33 @@ int main()
     glTextureParameteri(person_texture, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTextureParameteri(person_texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTextureParameteri(person_texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+
+    std::cout << "Creating specular" << std::endl;
+
+    GLuint specular_texture;
+    glCreateTextures(GL_TEXTURE_2D, 1, &specular_texture);
+
+    // Load the texture from file
+    sf::Image image1;
+    image1.loadFromFile("assets/textures/crate_specular.png");
+    auto w1 = image1.getSize().x;
+    auto h1 = image1.getSize().y;
+    auto data1 = image1.getPixelsPtr();
+
+    // Set the storage
+    glTextureStorage2D(specular_texture, 8, GL_RGBA8, w1, h1);
+    // glGenerateMipmap(GL_TEXTURE_2D);
+
+    // Upload the texture to the GPU to cover the whole created texture
+    glTextureSubImage2D(specular_texture, 0, 0, 0, w1, h1, GL_RGBA, GL_UNSIGNED_BYTE, data1);
+    glGenerateTextureMipmap(specular_texture);
+
+    // Set texture wrapping and min/mag filters
+    glTextureParameteri(specular_texture, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTextureParameteri(specular_texture, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTextureParameteri(specular_texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTextureParameteri(specular_texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
     // ---------------------------------------
     // ==== Create the OpenGL Framebuffer ====
@@ -363,15 +397,21 @@ int main()
     Transform camera_transform;
     Transform terrain_transform;
     Transform light_transform;
+    std::vector<Transform> box_transforms = {
+        {{10.0f, -5.0f, 10.0f}, {0.0f, 0.0f, 0}},
+        {{15.0f, -5.0f, 10.0f}, {0.0f, 90.0f, 0.0f}},
+    };
 
     camera_transform.rotation.y = 90.0f;
-    camera_transform.position.y = 1.5f;
+    camera_transform.position = {10.0f, 1.0f, 10.0f};
 
     terrain_transform.position.y -= 5.0f;
 
     glm::mat4 camera_projection =
         glm::perspective(glm::radians(75.0f), 1280.0f / 720.0f, 1.0f, 100.0f);
     glm::vec3 up = {0, 1, 0};
+
+    Settings settings;
 
     // -------------------
     // ==== Main Loop ====
@@ -424,9 +464,9 @@ int main()
                 camera_transform.position += translate * dt.asSeconds();
 
                 light_transform.position.x +=
-                    glm::sin(game_time_now.asSeconds() * 0.25f) * dt.asSeconds() * 10.0f;
+                    glm::sin(game_time_now.asSeconds() * 0.25f) * dt.asSeconds() * 3.0f;
                 light_transform.position.z +=
-                    glm::cos(game_time_now.asSeconds() * 0.25f) * dt.asSeconds() * 10.0f;
+                    glm::cos(game_time_now.asSeconds() * 0.25f) * dt.asSeconds() * 3.0f;
             });
 
         // -------------------------------
@@ -463,6 +503,21 @@ int main()
         light_mat =
             glm::rotate(light_mat, glm::radians(light_transform.rotation.z), {0, 0, 1});
 
+        // Calulate the boxes
+        std::vector<glm::mat4> box_mats;
+        for (auto& box_transform : box_transforms)
+        {
+            glm::mat4 box_mat{1.0f};
+
+            box_mat = glm::translate(box_mat, box_transform.position);
+
+            box_mat = glm::rotate(box_mat, glm::radians(box_transform.rotation.x), {1, 0, 0});
+            box_mat = glm::rotate(box_mat, glm::radians(box_transform.rotation.y), {0, 1, 0});
+            box_mat = glm::rotate(box_mat, glm::radians(box_transform.rotation.z), {0, 0, 1});
+
+            box_mats.push_back(box_mat);
+        }
+
         // -----------------------
         // ==== Render to FBO ====
         // -----------------------
@@ -475,6 +530,7 @@ int main()
 
         // Set the render states
         glBindTextureUnit(0, person_texture);
+        glBindTextureUnit(1, specular_texture);
         scene_shader.bind();
         scene_shader.set_uniform("projection_matrix", camera_projection);
         scene_shader.set_uniform("view_matrix", view_matrix);
@@ -482,19 +538,28 @@ int main()
         scene_shader.set_uniform("eye_position", camera_transform.position);
 
         scene_shader.set_uniform("material.diffuse", 0);
-        scene_shader.set_uniform("material.specular", glm::vec3{0.5f, 0.5f, 0.5f});
-        scene_shader.set_uniform("material.shininess", 32.0f);
+        scene_shader.set_uniform("material.specular", 1);
+        scene_shader.set_uniform("material.shininess", 64.0f);
 
-        scene_shader.set_uniform("light.ambient", glm::vec3{0.2f, 0.2f, 0.2f});
+        scene_shader.set_uniform("light.ambient", glm::vec3{0.6f, 0.6f, 0.6f});
         scene_shader.set_uniform("light.diffuse", glm::vec3{0.5f, 0.9f, 0.5f});
         scene_shader.set_uniform("light.specular", glm::vec3{1.0f, 1.0f, 1.0f});
         scene_shader.set_uniform("light.position", light_transform.position);
 
-        // Set the terrain trasform and render
         scene_shader.set_uniform("is_light", false);
+
+        // Set the terrain trasform and render
         scene_shader.set_uniform("model_matrix", terrain_mat);
         glBindVertexArray(terrain_vertex_array.vao);
         glDrawElements(GL_TRIANGLES, terrain_mesh.indices.size(), GL_UNSIGNED_INT, nullptr);
+
+        // Set the box transforms and render
+        glBindVertexArray(box_vertex_array.vao);
+        for (auto& box_matrix : box_mats)
+        {
+            scene_shader.set_uniform("model_matrix", box_matrix);
+            glDrawElements(GL_TRIANGLES, box_mesh.indices.size(), GL_UNSIGNED_INT, nullptr);
+        }
 
         // Set the light trasform and render
         scene_shader.set_uniform("is_light", true);
@@ -519,7 +584,7 @@ int main()
         // --------------------------
         // ==== End Frame ====
         // --------------------------
-        GUI::debug_window(camera_transform);
+        GUI::debug_window(camera_transform, settings);
 
         GUI::render();
         window.display();

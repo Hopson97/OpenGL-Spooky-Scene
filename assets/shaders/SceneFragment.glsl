@@ -12,7 +12,7 @@ out vec4 out_colour;
 struct Material 
 {
     sampler2D diffuse;
-    vec3 specular;
+    sampler2D specular;
     float shininess;
 };
 
@@ -60,7 +60,7 @@ void main() {
         
         vec3 ambient_light =  vec3(texture(material.diffuse, pass_texture_coord)) * light.ambient;
         vec3 diffuse = light.diffuse * diff * vec3(texture(material.diffuse, pass_texture_coord));
-        vec3 specular = spec * light.specular * material.specular;
+        vec3 specular = spec * light.specular * vec3(texture(material.specular, pass_texture_coord));
         
 
 
