@@ -12,44 +12,116 @@
 #include <nuklear_sfml/nuklear_def.h>
 #include <nuklear_sfml/nuklear_sfml_gl3.h>
 
-struct Vertex
+namespace
 {
-    glm::vec3 position{0.0f};
-    glm::vec3 colour{0.0f};
-    glm::vec2 texture{0.0f};
-};
 
-struct Transform
-{
-    glm::vec3 position{0.0f};
-    glm::vec3 rotation{0.0f};
-};
-
-template <int Ticks>
-class TimeStep
-{
-  public:
-    template <typename F>
-    void update(F f)
+    struct Vertex
     {
-        sf::Time time = timer_.getElapsedTime();
-        sf::Time elapsed = time - last_time_;
-        last_time_ = time;
-        lag_ += elapsed;
-        while (lag_ >= timePerUpdate_)
+        glm::vec3 position{0.0f};
+        glm::vec3 colour{0.0f};
+        glm::vec2 texture{0.0f};
+    };
+
+    struct Transform
+    {
+        glm::vec3 position{0.0f};
+        glm::vec3 rotation{0.0f};
+    };
+
+    template <int Ticks>
+    class TimeStep
+    {
+      public:
+        template <typename F>
+        void update(F f)
         {
-            lag_ -= timePerUpdate_;
-            f(dt_.restart());
+            sf::Time time = timer_.getElapsedTime();
+            sf::Time elapsed = time - last_time_;
+            last_time_ = time;
+            lag_ += elapsed;
+            while (lag_ >= timePerUpdate_)
+            {
+                lag_ -= timePerUpdate_;
+                f(dt_.restart());
+            }
         }
+
+      private:
+        const sf::Time timePerUpdate_ = sf::seconds(1.f / Ticks);
+        sf::Clock timer_;
+        sf::Clock dt_;
+        sf::Time last_time_ = sf::Time::Zero;
+        sf::Time lag_ = sf::Time::Zero;
+    };
+
+    glm::vec3 get_keyboard_input(const Transform& transform)
+    {
+        auto x_rot = glm::radians(transform.rotation.x);
+        auto y_rot = glm::radians(transform.rotation.y);
+        auto y_rot90 = glm::radians(transform.rotation.y + 90);
+
+        // Keyboard Input
+        glm::vec3 move{0.0f};
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
+        {
+            move += glm::vec3{
+                glm::cos(y_rot) * glm::cos(x_rot),
+                0, // glm::sin(x_rot),
+                glm::cos(x_rot) * glm::sin(y_rot),
+            };
+        }
+        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
+        {
+            move -= glm::vec3{
+                glm::cos(y_rot) * glm::cos(x_rot),
+                0, // glm::sin(x_rot),
+                glm::cos(x_rot) * glm::sin(y_rot),
+            };
+        }
+
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
+        {
+            move += glm::vec3{
+                -glm::cos(y_rot90),
+                0,
+                -glm::sin(y_rot90),
+            };
+        }
+        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
+        {
+            move -= glm::vec3{
+                -glm::cos(y_rot90),
+                0,
+                -glm::sin(y_rot90),
+            };
+        }
+
+        return move;
     }
 
-  private:
-    const sf::Time timePerUpdate_ = sf::seconds(1.f / Ticks);
-    sf::Clock timer_;
-    sf::Clock dt_;
-    sf::Time last_time_ = sf::Time::Zero;
-    sf::Time lag_ = sf::Time::Zero;
-};
+    void get_mouse_move_input(Transform& transform, const sf::Window& window)
+    {
+        auto& r = transform.rotation;
+        static auto last_mouse = sf::Mouse::getPosition(window);
+        auto change = sf::Mouse::getPosition(window) - last_mouse;
+        r.x -= static_cast<float>(change.y * 0.35);
+        r.y += static_cast<float>(change.x * 0.35);
+        // sf::Mouse::setPosition({(int)window.getSize().x / 2, (int)window.getSize().y /
+        // 2},
+        //                       window);
+        last_mouse = sf::Mouse::getPosition(window);
+
+        r.x = glm::clamp(r.x, -89.9f, 89.9f);
+        if (r.y >= 360.0f)
+        {
+            r.y = 0.0f;
+        }
+        if (r.y < 0.0f)
+        {
+            r.y = 359.9f;
+        }
+    }
+} // namespace
 
 namespace GUI
 {
@@ -316,83 +388,21 @@ int main()
         // ---------------
         // ==== Input ====
         // ---------------
-        auto x_rot = glm::radians(camera_transform.rotation.x);
-        auto y_rot = glm::radians(camera_transform.rotation.y);
-        auto y_rot90 = glm::radians(camera_transform.rotation.y + 90);
         auto SPEED = 5.0f;
-
-        // Keyboard Input
-        glm::vec3 move{0.0f};
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
-        {
-            move += glm::vec3{
-                glm::cos(y_rot) * glm::cos(x_rot),
-                0, // glm::sin(x_rot),
-                glm::cos(x_rot) * glm::sin(y_rot),
-            };
-        }
-        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
-        {
-            move -= glm::vec3{
-                glm::cos(y_rot) * glm::cos(x_rot),
-                0, // glm::sin(x_rot),
-                glm::cos(x_rot) * glm::sin(y_rot),
-            };
-        }
-
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
-        {
-            move += glm::vec3{
-                -glm::cos(y_rot90),
-                0,
-                -glm::sin(y_rot90),
-            };
-        }
-        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
-        {
-            move -= glm::vec3{
-                -glm::cos(y_rot90),
-                0,
-                -glm::sin(y_rot90),
-            };
-        }
-
-        move *= SPEED;
-
-        {
-            auto& r = camera_transform.rotation;
-            static auto last_mouse = sf::Mouse::getPosition();
-            auto change = sf::Mouse::getPosition() - last_mouse;
-            r.x -= static_cast<float>(change.y * 0.35);
-            r.y += static_cast<float>(change.x * 0.35);
-           // sf::Mouse::setPosition({(int)window.getSize().x / 2, (int)window.getSize().y / 2},
-            //                       window);
-            last_mouse = sf::Mouse::getPosition();
-
-            r.x = glm::clamp(r.x, -89.9f, 89.9f);
-            if (r.y > 360.0f)
-            {
-                r.y = 0.0f;
-            }
-            else if (r.y < 0.0f)
-            {
-                r.y = 360.0f;
-
-            }
-        }
-
+        auto translate = get_keyboard_input(camera_transform) * SPEED;
+        get_mouse_move_input(camera_transform, window);
 
         // Update...
-        time_step.update(
-            [&](auto dt) { camera_transform.position += move * dt.asSeconds();
-            });
+        time_step.update([&](auto dt)
+                         { camera_transform.position += translate * dt.asSeconds(); });
 
         // -------------------------------
         // ==== Transform Calculation ====
         // -------------------------------
         glm::mat4 view_matrix{1.0f};
         {
-
+            auto x_rot = glm::radians(camera_transform.rotation.x);
+            auto y_rot = glm::radians(camera_transform.rotation.y);
             glm::vec3 front = {
                 glm::cos(y_rot) * glm::cos(x_rot),
                 glm::sin(x_rot),
