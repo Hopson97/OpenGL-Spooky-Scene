@@ -11,8 +11,7 @@ out vec4 out_colour;
 
 struct Material 
 {
-    vec3 ambient;
-    vec3 diffuse;
+    sampler2D diffuse;
     vec3 specular;
     float shininess;
 };
@@ -28,7 +27,6 @@ struct Light
 uniform Material material;
 uniform Light light;  
 
-uniform sampler2D diffuse_texture;
 
 uniform vec3 eye_position;
 
@@ -44,7 +42,7 @@ void main() {
 
     out_colour = 
         vec4(pass_colour, 1.0) * 
-        texture(diffuse_texture, pass_texture_coord);
+        texture(material.diffuse, pass_texture_coord);
 
     if (!is_light) { 
         
@@ -60,8 +58,8 @@ void main() {
         float spec = pow(max(dot(eye_direction, reflect_direction), 0.0), material.shininess);
         
         
-        vec3 ambient_light = material.ambient * light.ambient;
-        vec3 diffuse = light.diffuse * diff * material.diffuse;
+        vec3 ambient_light =  vec3(texture(material.diffuse, pass_texture_coord)) * light.ambient;
+        vec3 diffuse = light.diffuse * diff * vec3(texture(material.diffuse, pass_texture_coord));
         vec3 specular = spec * light.specular * material.specular;
         
 

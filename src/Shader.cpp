@@ -133,7 +133,7 @@ void Shader::bind() const
 
 void Shader::set_uniform(const std::string& name, int value)
 {
-    glProgramUniform1f(program_, get_uniform_location(name), value);
+    glProgramUniform1i(program_, get_uniform_location(name), value);
 }
 
 void Shader::set_uniform(const std::string& name, float value)

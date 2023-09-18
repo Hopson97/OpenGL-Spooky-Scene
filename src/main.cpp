@@ -481,8 +481,7 @@ int main()
 
         scene_shader.set_uniform("eye_position", camera_transform.position);
 
-        scene_shader.set_uniform("material.ambient", glm::vec3{1.0f, 1.0f, 1.0f});
-        scene_shader.set_uniform("material.diffuse", glm::vec3{1.0f, 1.0f, 1.0f});
+        scene_shader.set_uniform("material.diffuse", 0);
         scene_shader.set_uniform("material.specular", glm::vec3{0.5f, 0.5f, 0.5f});
         scene_shader.set_uniform("material.shininess", 32.0f);
 
