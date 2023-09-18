@@ -35,8 +35,8 @@ namespace
     {
         bool wireframe = false;
         float material_shine = 32.0f;
-        glm::vec3 light_ambient{0.6f, 0.6f, 0.6f};
-        glm::vec3 light_diffuse{0.5f, 0.9f, 0.5f};
+        glm::vec3 light_ambient{0.8f, 0.8f, 0.8f};
+        glm::vec3 light_diffuse{0.6f, 0.6f, 0.6f};
         glm::vec3 light_specular{1.0f, 1.0f, 1.0f};
     };
 
@@ -200,7 +200,6 @@ namespace GUI
             nk_layout_row_dynamic(ctx, 12, 1);
             nk_labelf(ctx, NK_STATIC, "Position: (%f, %f, %f)", p.x, p.y, p.z);
             nk_labelf(ctx, NK_STATIC, "Rotation: (%f, %f, %f)", r.x, r.y, r.z);
-
         }
         nk_end(ctx);
 
@@ -210,10 +209,12 @@ namespace GUI
             ImGui::Text("Rotation: (%f, %f, %f)", r.x, r.y, r.z);
 
             ImGui::SliderFloat("Shine", &settings.material_shine, 0.0f, 256.0f);
-            ImGui::SliderFloat3("Light Ambient", &settings.light_ambient[0], 0.0f, 1.0f, "%.2f");
-            ImGui::SliderFloat3("Light Diffuse", &settings.light_diffuse[0], 0.0f, 1.0f, "%.2f");
-            ImGui::SliderFloat3("Light Specular", &settings.light_specular[0], 0.0f, 1.0f, "%.2f");
-
+            ImGui::SliderFloat3("Light Ambient", &settings.light_ambient[0], 0.0f, 1.0f,
+                                "%.2f");
+            ImGui::SliderFloat3("Light Diffuse", &settings.light_diffuse[0], 0.0f, 1.0f,
+                                "%.2f");
+            ImGui::SliderFloat3("Light Specular", &settings.light_specular[0], 0.0f, 1.0f,
+                                "%.2f");
         }
         ImGui::End();
     }
@@ -255,7 +256,7 @@ int main()
     // ----------------------------------------
     auto buffer_mesh = [](Mesh& mesh)
     {
-        std::cout << "Creating vertex arrays" << std::endl;
+        std::cout << "Creating vertex arrays\n";
         VertexArray vertex_array;
 
         // Create the OpenGL buffer objects
@@ -301,10 +302,10 @@ int main()
     auto light_vertex_array = buffer_mesh(light_mesh);
     auto box_vertex_array = buffer_mesh(box_mesh);
 
-    // -----------------------------------
-    // ==== Create the OpenGL Texture ====
-    // -----------------------------------
-    std::cout << "Creating texture" << std::endl;
+    // ------------------------------------
+    // ==== Create the OpenGL Textures ====
+    // ------------------------------------
+    std::cout << "Creating texture\n";
 
     GLuint person_texture;
     glCreateTextures(GL_TEXTURE_2D, 1, &person_texture);
@@ -330,7 +331,7 @@ int main()
     glTextureParameteri(person_texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTextureParameteri(person_texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    std::cout << "Creating specular" << std::endl;
+    std::cout << "Creating specular texture\n";
 
     GLuint specular_texture;
     glCreateTextures(GL_TEXTURE_2D, 1, &specular_texture);
@@ -359,7 +360,7 @@ int main()
     // ---------------------------------------
     // ==== Create the OpenGL Framebuffer ====
     // ---------------------------------------
-    std::cout << "Creating framebuffer" << std::endl;
+    std::cout << "Creating framebuffer\n";
     auto fbo_x = window.getSize().x;
     auto fbo_y = window.getSize().y;
     GLuint fbo;
@@ -417,10 +418,16 @@ int main()
     Transform camera_transform;
     Transform terrain_transform;
     Transform light_transform;
-    std::vector<Transform> box_transforms = {
-        {{10.0f, -5.0f, 10.0f}, {0.0f, 0.0f, 0}},
-        {{15.0f, -5.0f, 10.0f}, {0.0f, 90.0f, 0.0f}},
-    };
+    std::vector<Transform> box_transforms;
+
+    for (int i = 0; i < 25; i++)
+    {
+        float x = static_cast<float>(rand() % 50);
+        float y = static_cast<float>(rand() % 360);
+        float z = static_cast<float>(rand() % 50);
+
+        box_transforms.push_back({{x, -5.0f, z}, {0.0f, y, 0}});
+    }
 
     camera_transform.rotation.y = 90.0f;
     camera_transform.position = {10.0f, 1.0f, 10.0f};
@@ -564,7 +571,7 @@ int main()
         scene_shader.set_uniform("material.specular", 1);
         scene_shader.set_uniform("material.shininess", settings.material_shine);
 
-        scene_shader.set_uniform("light.ambient",settings.light_ambient);
+        scene_shader.set_uniform("light.ambient", settings.light_ambient);
         scene_shader.set_uniform("light.diffuse", settings.light_diffuse);
         scene_shader.set_uniform("light.specular", settings.light_specular);
         scene_shader.set_uniform("light.position", light_transform.position);
