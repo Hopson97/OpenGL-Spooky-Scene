@@ -4,8 +4,12 @@
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <imgui.h>
 #include <nuklear_sfml/nuklear_def.h>
 #include <nuklear_sfml/nuklear_sfml_gl3.h>
+
+#include <imgui_sfml/imgui-SFML.h>
+#include <imgui_sfml/imgui_impl_opengl3.h>
 
 #include "GLDebugEnable.h"
 #include "MeshGeneration.h"
@@ -30,6 +34,7 @@ namespace
     struct Settings
     {
         bool wireframe = false;
+        float material_shine = 32.0f;
         glm::vec3 light_ambient{0.6f, 0.6f, 0.6f};
         glm::vec3 light_diffuse{0.5f, 0.9f, 0.5f};
         glm::vec3 light_specular{1.0f, 1.0f, 1.0f};
@@ -149,18 +154,18 @@ namespace GUI
         nk_font_atlas* atlas;
         nk_sfml_font_stash_begin(&atlas);
         nk_sfml_font_stash_end();
+
+        ImGui::SFML::Init(*window, cast_vector<float>(window->getSize()));
+        ImGui_ImplOpenGL3_Init();
     }
 
     void begin_frame()
     {
         assert(ctx);
         nk_input_begin(ctx);
-    }
 
-    void end_frame()
-    {
-        assert(ctx);
-        nk_input_end(ctx);
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui::NewFrame();
     }
 
     void shutdown()
@@ -172,7 +177,11 @@ namespace GUI
     void render()
     {
         assert(ctx);
+        nk_input_end(ctx);
         nk_sfml_render(NK_ANTI_ALIASING_ON, 0x80000, 0x80000);
+
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     }
 
     void event(sf::Event& e)
@@ -192,9 +201,21 @@ namespace GUI
             nk_labelf(ctx, NK_STATIC, "Position: (%f, %f, %f)", p.x, p.y, p.z);
             nk_labelf(ctx, NK_STATIC, "Rotation: (%f, %f, %f)", r.x, r.y, r.z);
 
-
-            nk_end(ctx);
         }
+        nk_end(ctx);
+
+        if (ImGui::Begin("Debug Window"))
+        {
+            ImGui::Text("Position: (%f, %f, %f)", p.x, p.y, p.z);
+            ImGui::Text("Rotation: (%f, %f, %f)", r.x, r.y, r.z);
+
+            ImGui::SliderFloat("Shine", &settings.material_shine, 0.0f, 256.0f);
+            ImGui::SliderFloat3("Light Ambient", &settings.light_ambient[0], 0.0f, 1.0f, "%.2f");
+            ImGui::SliderFloat3("Light Diffuse", &settings.light_diffuse[0], 0.0f, 1.0f, "%.2f");
+            ImGui::SliderFloat3("Light Specular", &settings.light_specular[0], 0.0f, 1.0f, "%.2f");
+
+        }
+        ImGui::End();
     }
 
 } // namespace GUI
@@ -309,7 +330,6 @@ int main()
     glTextureParameteri(person_texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTextureParameteri(person_texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-
     std::cout << "Creating specular" << std::endl;
 
     GLuint specular_texture;
@@ -418,6 +438,7 @@ int main()
     // -------------------
     TimeStep<60> time_step;
     sf::Clock game_time;
+    sf::Clock delta_clock;
     while (window.isOpen())
     {
         auto game_time_now = game_time.getElapsedTime();
@@ -425,6 +446,7 @@ int main()
         sf::Event e;
         while (window.pollEvent(e))
         {
+            ImGui::SFML::ProcessEvent(window, e);
             GUI::event(e);
             if (e.type == sf::Event::Closed)
                 window.close();
@@ -438,7 +460,8 @@ int main()
         {
             break;
         }
-        GUI::end_frame();
+        // ImGui::SFML::Update()
+
         // ---------------
         // ==== Input ====
         // ---------------
@@ -539,11 +562,11 @@ int main()
 
         scene_shader.set_uniform("material.diffuse", 0);
         scene_shader.set_uniform("material.specular", 1);
-        scene_shader.set_uniform("material.shininess", 64.0f);
+        scene_shader.set_uniform("material.shininess", settings.material_shine);
 
-        scene_shader.set_uniform("light.ambient", glm::vec3{0.6f, 0.6f, 0.6f});
-        scene_shader.set_uniform("light.diffuse", glm::vec3{0.5f, 0.9f, 0.5f});
-        scene_shader.set_uniform("light.specular", glm::vec3{1.0f, 1.0f, 1.0f});
+        scene_shader.set_uniform("light.ambient",settings.light_ambient);
+        scene_shader.set_uniform("light.diffuse", settings.light_diffuse);
+        scene_shader.set_uniform("light.specular", settings.light_specular);
         scene_shader.set_uniform("light.position", light_transform.position);
 
         scene_shader.set_uniform("is_light", false);
