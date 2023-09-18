@@ -211,17 +211,12 @@ int main()
     Mesh terrain_mesh = generate_terrain_mesh(20, 20);
 
     /*
-    std::vector<Vertex> points = {{{0.5f, 0.5f, 0.0f}, {0.2f, 0.2f, 0.5f}, {0.0f, 1.0f}},
-                                  {{-0.5f, 0.5f, 0.0f}, {0.2f, 0.5f, 0.5f}, {1.0f, 1.0f}},
-                                  {{-0.5f, -0.5f, 0.0f}, {0.2f, 0.5f, 1.0f}, {1.0f, 0.0f}},
-                                  {{0.5f, -0.5f, 0.0f}, {0.2f, 0.5f, 0.5f}, {0.0f, 0.0f}}
-
-    };
+    
 
     // std::vector<GLfloat> points = {
     //     , , , ,
     // };
-    std::vector<GLuint> indices = {0, 1, 2, 2, 3, 0};
+    
     */
 
     // ----------------------------------------
@@ -237,7 +232,7 @@ int main()
     glCreateBuffers(1, &vbo);
     glCreateBuffers(1, &ebo);
 
-    // == Init the element buffer ==
+    // Element buffer
     glNamedBufferStorage(ebo, terrain_mesh.indices.size() * sizeof(GLuint),
                          terrain_mesh.indices.data(),
                          0x0);
@@ -289,8 +284,8 @@ int main()
     glTextureSubImage2D(person_texture, 0, 0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, data);
 
     // Set texture wrapping and min/mag filters
-    glTextureParameteri(person_texture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTextureParameteri(person_texture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(person_texture, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTextureParameteri(person_texture, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTextureParameteri(person_texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTextureParameteri(person_texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
@@ -336,8 +331,8 @@ int main()
     // ==== Load shaders ====
     // ----------------------
     Shader scene_shader;
-    if (!scene_shader.load_from_file("assets/shaders/vertex.glsl",
-                                     "assets/shaders/fragment.glsl"))
+    if (!scene_shader.load_from_file("assets/shaders/SceneVertex.glsl",
+                                     "assets/shaders/SceneFragment.glsl"))
     {
         return -1;
     }

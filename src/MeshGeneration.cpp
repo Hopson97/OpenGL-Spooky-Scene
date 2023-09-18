@@ -1,5 +1,20 @@
 #include "MeshGeneration.h"
 
+Mesh generate_quad_mesh(float size)
+{
+    Mesh mesh;
+    mesh.vertices = {{{size, size, 0.0f}, {0.2f, 0.2f, 0.5f}, {0.0f, 1.0f}, {0, 0, 1}},
+                     {{-size, size, 0.0f}, {0.2f, 0.5f, 0.5f}, {1.0f, 1.0f}, {0, 0, 1}},
+                     {{-size, -size, 0.0f}, {0.2f, 0.5f, 1.0f}, {1.0f, 0.0f}, {0, 0, 1}},
+                     {{size, -size, 0.0f}, {0.2f, 0.5f, 0.5f}, {0.0f, 0.0f}, {0, 0, 1}}
+
+    };
+
+    mesh.indices = {0, 1, 2, 2, 3, 0};
+
+    return mesh;
+}
+
 Mesh generate_terrain_mesh(int size, int edgeVertices)
 {
     float fEdgeVertexCount = static_cast<float>(edgeVertices);
