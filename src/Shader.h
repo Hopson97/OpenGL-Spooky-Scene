@@ -27,6 +27,8 @@ class Shader
 
     void bind() const;
 
+    void set_uniform(const std::string& name, int value);
+    void set_uniform(const std::string& name, const glm::vec3& vect);
     void set_uniform(const std::string& name, const glm::mat4& matrix);
 
   private:

@@ -283,10 +283,12 @@ int main()
     auto data = image.getPixelsPtr();
 
     // Set the storage
-    glTextureStorage2D(person_texture, 1, GL_RGBA8, w, h);
+    glTextureStorage2D(person_texture, 8, GL_RGBA8, w, h);
+    //glGenerateMipmap(GL_TEXTURE_2D);
 
     // Upload the texture to the GPU to cover the whole created texture
     glTextureSubImage2D(person_texture, 0, 0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    glGenerateTextureMipmap(person_texture);
 
     // Set texture wrapping and min/mag filters
     glTextureParameteri(person_texture, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -459,12 +461,18 @@ int main()
         scene_shader.set_uniform("projection_matrix", camera_projection);
         scene_shader.set_uniform("view_matrix", view_matrix);
 
+        scene_shader.set_uniform("light_colour", glm::vec3{1.0, 1.0, 1.0});
+        scene_shader.set_uniform("eye_position", camera_transform.position);
+        scene_shader.set_uniform("light_position", light_transform.position);
+
         // Set the terrain trasform and render
+        scene_shader.set_uniform("is_light", false);
         scene_shader.set_uniform("model_matrix", terrain_mat);
         glBindVertexArray(terrain_vertex_array.vao);
         glDrawElements(GL_TRIANGLES, terrain_mesh.indices.size(), GL_UNSIGNED_INT, nullptr);
 
         // Set the light trasform and render
+        scene_shader.set_uniform("is_light", true);
         scene_shader.set_uniform("model_matrix", light_mat);
         glBindVertexArray(light_vertex_array.vao);
         glDrawElements(GL_TRIANGLES, light_mesh.indices.size(), GL_UNSIGNED_INT, nullptr);
