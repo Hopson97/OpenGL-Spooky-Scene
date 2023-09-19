@@ -33,9 +33,9 @@ class Shader
     void set_uniform(const std::string& name, const glm::mat4& matrix);
 
   private:
-    GLuint get_uniform_location(const std::string& name);
+    GLint get_uniform_location(const std::string& name);
 
   private:
-    std::unordered_map<std::string, GLuint> uniform_locations_;
+    std::unordered_map<std::string, GLint> uniform_locations_;
     GLuint program_ = 0;
 };

@@ -152,7 +152,7 @@ void Shader::set_uniform(const std::string& name, const glm::mat4& matrix)
                               glm::value_ptr(matrix));
 }
 
-GLuint Shader::get_uniform_location(const std::string& name)
+GLint Shader::get_uniform_location(const std::string& name)
 {
     auto itr = uniform_locations_.find(name);
     if (itr == uniform_locations_.end())

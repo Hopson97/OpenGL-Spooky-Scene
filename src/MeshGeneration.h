@@ -18,6 +18,6 @@ struct Mesh
     std::vector<GLuint> indices;
 };
 
-[[no_discard]] Mesh generate_quad_mesh(float size);
-[[no_discard]] Mesh generate_cube_mesh(const glm::vec3& size);
-[[no_discard]] Mesh generate_terrain_mesh(int size, int edgeVertices);
+[[nodiscard]] Mesh generate_quad_mesh(float size);
+[[nodiscard]] Mesh generate_cube_mesh(const glm::vec3& size);
+[[nodiscard]] Mesh generate_terrain_mesh(int size, int edgeVertices);

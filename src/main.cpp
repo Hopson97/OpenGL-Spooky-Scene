@@ -38,6 +38,8 @@ namespace
         glm::vec3 light_ambient{0.8f, 0.8f, 0.8f};
         glm::vec3 light_diffuse{0.6f, 0.6f, 0.6f};
         glm::vec3 light_specular{1.0f, 1.0f, 1.0f};
+
+        float spotlight_cutoff = 12.5f;
     };
 
     template <int Ticks>
@@ -215,6 +217,9 @@ namespace GUI
                                 "%.2f");
             ImGui::SliderFloat3("Light Specular", &settings.light_specular[0], 0.0f, 1.0f,
                                 "%.2f");
+
+            ImGui::SliderFloat("Spotlight Cutoff", &settings.spotlight_cutoff, 1.0f, 90.0f);
+
         }
         ImGui::End();
     }
@@ -503,7 +508,6 @@ int main()
         // ==== Transform Calculation ====
         // -------------------------------
         glm::mat4 view_matrix{1.0f};
-        {
             auto x_rot = glm::radians(camera_transform.rotation.x);
             auto y_rot = glm::radians(camera_transform.rotation.y);
             glm::vec3 front = {
@@ -514,7 +518,7 @@ int main()
             glm::vec3 centre = camera_transform.position + glm::normalize(front);
 
             view_matrix = glm::lookAt(camera_transform.position, centre, up);
-        }
+
 
         // Calculate the terrain postion and rotation
         glm::mat4 terrain_mat{1.0f};
@@ -575,6 +579,14 @@ int main()
         scene_shader.set_uniform("light.diffuse", settings.light_diffuse);
         scene_shader.set_uniform("light.specular", settings.light_specular);
         scene_shader.set_uniform("light.position", light_transform.position);
+
+        scene_shader.set_uniform("spotlight.position", camera_transform.position);
+        scene_shader.set_uniform("spotlight.direction", front);
+        scene_shader.set_uniform("spotlight.cutoff", glm::cos(glm::radians(settings.spotlight_cutoff)));
+        //scene_shader.set_uniform("spotlight.outer_cutoff", glm::cos(glm::radians(20.5f)));
+        scene_shader.set_uniform("spotlight.ambient", settings.light_ambient);
+        scene_shader.set_uniform("spotlight.diffuse", settings.light_diffuse);
+        scene_shader.set_uniform("spotlight.specular", settings.light_specular);
 
         scene_shader.set_uniform("is_light", false);
 

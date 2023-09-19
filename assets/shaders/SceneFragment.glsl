@@ -24,14 +24,54 @@ struct Light
     vec3 specular;
 };
 
+
+struct SpotLight 
+{
+    vec3 position;
+    vec3 direction;
+    float cutoff;
+    //float outer_cutoff;
+
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+};
+
 uniform Material material;
 uniform Light light;  
-
-
+uniform SpotLight spotlight;  
 uniform vec3 eye_position;
-
-
 uniform bool is_light;
+
+vec3 do_spotlight()
+{
+    vec3 light_direction = normalize(spotlight.position - pass_fragment_coord);
+    vec3 normal = normalize(pass_normal);
+
+    float theta = dot(light_direction, normalize(-spotlight.direction));
+
+
+    if (theta < spotlight.cutoff) 
+    {
+        // Diffuse Lighting
+        float diff = max(dot(normal, light_direction), 0.0);
+
+        // Specular Lighting
+        vec3 eye_direction = normalize(eye_position - pass_fragment_coord);
+        vec3 reflect_direction = reflect(-light_direction, normal);
+        float spec = pow(max(dot(eye_direction, reflect_direction), 0.0), material.shininess);
+
+       
+        vec3 ambient_light =  vec3(texture(material.diffuse, pass_texture_coord)) * spotlight.ambient;
+        vec3 diffuse = spotlight.diffuse * diff * vec3(texture(material.diffuse, pass_texture_coord));
+        vec3 specular = spec * spotlight.specular * vec3(texture(material.specular, pass_texture_coord));
+
+        return ambient_light * diffuse + specular;
+    }
+
+    return vec3(texture(material.diffuse, pass_texture_coord)) * spotlight.ambient;
+}
+
 
 void main() {
    //out_colour = mix(
@@ -61,10 +101,12 @@ void main() {
         vec3 ambient_light =  vec3(texture(material.diffuse, pass_texture_coord)) * light.ambient;
         vec3 diffuse = light.diffuse * diff * vec3(texture(material.diffuse, pass_texture_coord));
         vec3 specular = spec * light.specular * vec3(texture(material.specular, pass_texture_coord));
+
+        vec3 spotlight = do_spotlight();
         
 
 
-        out_colour *= vec4(ambient_light + diffuse + specular, 1.0);
+        out_colour *= vec4(ambient_light + diffuse + specular + spotlight, 1.0);
 
     }
     else {
