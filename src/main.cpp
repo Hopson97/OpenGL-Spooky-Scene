@@ -38,6 +38,8 @@ namespace
         glm::vec3 light_ambient{0.8f, 0.8f, 0.8f};
         glm::vec3 light_diffuse{0.6f, 0.6f, 0.6f};
         glm::vec3 light_specular{1.0f, 1.0f, 1.0f};
+        float light_att_linear = 0.045;
+        float light_att_quadratic = 0.0075;
 
         float spotlight_cutoff = 12.5f;
     };
@@ -79,35 +81,25 @@ namespace
         glm::vec3 move{0.0f};
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
         {
-            move += glm::vec3{
-                glm::cos(y_rot) * glm::cos(x_rot),
-                flying ? glm::sin(x_rot) : 0.0f,
-                glm::cos(x_rot) * glm::sin(y_rot),
-            };
+            move +=
+                glm::vec3{glm::cos(y_rot) * glm::cos(x_rot), flying ? glm::sin(x_rot) : 0.0f,
+                          glm::cos(x_rot) * glm::sin(y_rot)};
         }
         else if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
         {
-            move -= glm::vec3{
-                glm::cos(y_rot) * glm::cos(x_rot),
-                flying ? glm::sin(x_rot) : 0.0f,
-                glm::cos(x_rot) * glm::sin(y_rot),
-            };
+            move -=
+                glm::vec3{glm::cos(y_rot) * glm::cos(x_rot), flying ? glm::sin(x_rot) : 0.0f,
+                          glm::cos(x_rot) * glm::sin(y_rot)};
         }
 
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
         {
-            move += glm::vec3{
-                -glm::cos(y_rot90),
-                0,
-                -glm::sin(y_rot90),
-            };
+            move += glm::vec3{-glm::cos(y_rot90), 0, -glm::sin(y_rot90)};
         }
         else if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
         {
-            move -= glm::vec3{
-                -glm::cos(y_rot90),
-                0,
-                -glm::sin(y_rot90),
+            move -= glm::vec3{-glm::cos(y_rot90), 0, -glm::sin(y_rot90)
+
             };
         }
 
@@ -210,7 +202,13 @@ namespace GUI
             ImGui::Text("Position: (%f, %f, %f)", p.x, p.y, p.z);
             ImGui::Text("Rotation: (%f, %f, %f)", r.x, r.y, r.z);
 
-            ImGui::SliderFloat("Shine", &settings.material_shine, 0.0f, 256.0f);
+            ImGui::SliderFloat("Material Shine", &settings.material_shine, 1.0f, 64.0f);
+
+            ImGui::SliderFloat("Light Attenuation Linear", &settings.light_att_linear, 0.14f,
+                               0.0014f);
+            ImGui::SliderFloat("Light Attenuation Quadratic", &settings.light_att_quadratic,
+                               0.000007f, 0.03f);
+
             ImGui::SliderFloat3("Light Ambient", &settings.light_ambient[0], 0.0f, 1.0f,
                                 "%.2f");
             ImGui::SliderFloat3("Light Diffuse", &settings.light_diffuse[0], 0.0f, 1.0f,
@@ -219,7 +217,6 @@ namespace GUI
                                 "%.2f");
 
             ImGui::SliderFloat("Spotlight Cutoff", &settings.spotlight_cutoff, 1.0f, 90.0f);
-
         }
         ImGui::End();
     }
@@ -236,7 +233,7 @@ int main()
     context_settings.minorVersion = 5;
     context_settings.attributeFlags = sf::ContextSettings::Core;
 
-    sf::Window window({1280, 720}, "Matt GL", sf::Style::Default, context_settings);
+    sf::Window window({1600, 900}, "Matt GL", sf::Style::Default, context_settings);
     window.setVerticalSyncEnabled(true);
     bool mouse_locked = false;
 
@@ -247,14 +244,16 @@ int main()
         std::cerr << "Failed to init OpenGL - Is OpenGL linked correctly?\n";
         return -1;
     }
-    glViewport(0, 0, 1280, 720);
+    glViewport(0, 0, 1600, 900);
     init_opengl_debugging();
     GUI::init(&window);
 
-    // Generate some meshes...
-    Mesh terrain_mesh = generate_terrain_mesh(50, 100);
-    Mesh light_mesh = generate_cube_mesh({0.6f, 0.8f, 1.0f});
-    Mesh box_mesh = generate_cube_mesh({1.0f, 1.0f, 1.0f});
+    // ---------------------------
+    // ==== Create the Meshes ====
+    // ---------------------------
+    Mesh terrain_mesh = generate_terrain_mesh(256, 512);
+    Mesh light_mesh = generate_cube_mesh({0.2f, 0.2f, 0.2f});
+    Mesh box_mesh = generate_cube_mesh({3.0f,3.0f, 3.0f});
 
     // ----------------------------------------
     // ==== Create the OpenGL vertex array ====
@@ -310,57 +309,41 @@ int main()
     // ------------------------------------
     // ==== Create the OpenGL Textures ====
     // ------------------------------------
-    std::cout << "Creating texture\n";
+    auto load_texture = [](const fs::path& path)
+    {
+        std::cout << "Loading texture " << path << '\n';
+        GLuint texture;
+        glCreateTextures(GL_TEXTURE_2D, 1, &texture);
 
-    GLuint person_texture;
-    glCreateTextures(GL_TEXTURE_2D, 1, &person_texture);
+        // Load the texture from file
+        sf::Image image;
+        image.loadFromFile(path.string());
+        auto w = image.getSize().x;
+        auto h = image.getSize().y;
+        auto data = image.getPixelsPtr();
 
-    // Load the texture from file
-    sf::Image image;
-    image.loadFromFile("assets/textures/crate.png");
-    auto w = image.getSize().x;
-    auto h = image.getSize().y;
-    auto data = image.getPixelsPtr();
+        // Set the storage
+        glTextureStorage2D(texture, 8, GL_RGBA8, w, h);
+        // glGenerateMipmap(GL_TEXTURE_2D);
 
-    // Set the storage
-    glTextureStorage2D(person_texture, 8, GL_RGBA8, w, h);
-    // glGenerateMipmap(GL_TEXTURE_2D);
+        // Upload the texture to the GPU to cover the whole created texture
+        glTextureSubImage2D(texture, 0, 0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, data);
+        glGenerateTextureMipmap(texture);
 
-    // Upload the texture to the GPU to cover the whole created texture
-    glTextureSubImage2D(person_texture, 0, 0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, data);
-    glGenerateTextureMipmap(person_texture);
+        // Set texture wrapping and min/mag filters
+        glTextureParameteri(texture, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTextureParameteri(texture, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTextureParameteri(texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    // Set texture wrapping and min/mag filters
-    glTextureParameteri(person_texture, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTextureParameteri(person_texture, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTextureParameteri(person_texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTextureParameteri(person_texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        return texture;
+    };
 
-    std::cout << "Creating specular texture\n";
-
-    GLuint specular_texture;
-    glCreateTextures(GL_TEXTURE_2D, 1, &specular_texture);
-
-    // Load the texture from file
-    sf::Image image1;
-    image1.loadFromFile("assets/textures/crate_specular.png");
-    auto w1 = image1.getSize().x;
-    auto h1 = image1.getSize().y;
-    auto data1 = image1.getPixelsPtr();
-
-    // Set the storage
-    glTextureStorage2D(specular_texture, 8, GL_RGBA8, w1, h1);
-    // glGenerateMipmap(GL_TEXTURE_2D);
-
-    // Upload the texture to the GPU to cover the whole created texture
-    glTextureSubImage2D(specular_texture, 0, 0, 0, w1, h1, GL_RGBA, GL_UNSIGNED_BYTE, data1);
-    glGenerateTextureMipmap(specular_texture);
-
-    // Set texture wrapping and min/mag filters
-    glTextureParameteri(specular_texture, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTextureParameteri(specular_texture, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTextureParameteri(specular_texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTextureParameteri(specular_texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    GLuint person_texture = load_texture("assets/textures/person.png");
+    GLuint grass_texture = load_texture("assets/textures/grass_03.png");
+    GLuint grass_specular_texture = load_texture("assets/textures/grass_specular.png");
+    GLuint crate_texture = load_texture("assets/textures/crate.png");
+    GLuint specular_texture = load_texture("assets/textures/crate_specular.png");
 
     // ---------------------------------------
     // ==== Create the OpenGL Framebuffer ====
@@ -427,20 +410,21 @@ int main()
 
     for (int i = 0; i < 25; i++)
     {
-        float x = static_cast<float>(rand() % 50);
+        float x = static_cast<float>(rand() % 100);
         float y = static_cast<float>(rand() % 360);
-        float z = static_cast<float>(rand() % 50);
+        float z = static_cast<float>(rand() % 100);
 
         box_transforms.push_back({{x, -5.0f, z}, {0.0f, y, 0}});
     }
 
     camera_transform.rotation.y = 90.0f;
-    camera_transform.position = {10.0f, 1.0f, 10.0f};
+    camera_transform.position = {20.0f, 1.0f, 20.0f};
+    light_transform.position = {20.0f, 3.0f, 20.0f};
 
     terrain_transform.position.y -= 5.0f;
 
     glm::mat4 camera_projection =
-        glm::perspective(glm::radians(75.0f), 1280.0f / 720.0f, 1.0f, 100.0f);
+        glm::perspective(glm::radians(75.0f), 1600.0f / 900.0f, 1.0f, 100.0f);
     glm::vec3 up = {0, 1, 0};
 
     Settings settings;
@@ -499,26 +483,25 @@ int main()
                 camera_transform.position += translate * dt.asSeconds();
 
                 light_transform.position.x +=
-                    glm::sin(game_time_now.asSeconds() * 0.25f) * dt.asSeconds() * 3.0f;
+                    glm::sin(game_time_now.asSeconds() * 0.55f) * dt.asSeconds() * 3.0f;
                 light_transform.position.z +=
-                    glm::cos(game_time_now.asSeconds() * 0.25f) * dt.asSeconds() * 3.0f;
+                    glm::cos(game_time_now.asSeconds() * 0.55f) * dt.asSeconds() * 3.0f;
             });
 
         // -------------------------------
         // ==== Transform Calculation ====
         // -------------------------------
         glm::mat4 view_matrix{1.0f};
-            auto x_rot = glm::radians(camera_transform.rotation.x);
-            auto y_rot = glm::radians(camera_transform.rotation.y);
-            glm::vec3 front = {
-                glm::cos(y_rot) * glm::cos(x_rot),
-                glm::sin(x_rot),
-                glm::sin(y_rot) * glm::cos(x_rot),
-            };
-            glm::vec3 centre = camera_transform.position + glm::normalize(front);
+        auto x_rot = glm::radians(camera_transform.rotation.x);
+        auto y_rot = glm::radians(camera_transform.rotation.y);
+        glm::vec3 front = {
+            glm::cos(y_rot) * glm::cos(x_rot),
+            glm::sin(x_rot),
+            glm::sin(y_rot) * glm::cos(x_rot),
+        };
+        glm::vec3 centre = camera_transform.position + glm::normalize(front);
 
-            view_matrix = glm::lookAt(camera_transform.position, centre, up);
-
+        view_matrix = glm::lookAt(camera_transform.position, centre, up);
 
         // Calculate the terrain postion and rotation
         glm::mat4 terrain_mat{1.0f};
@@ -563,8 +546,6 @@ int main()
         glCullFace(GL_BACK);
 
         // Set the render states
-        glBindTextureUnit(0, person_texture);
-        glBindTextureUnit(1, specular_texture);
         scene_shader.bind();
         scene_shader.set_uniform("projection_matrix", camera_projection);
         scene_shader.set_uniform("view_matrix", view_matrix);
@@ -575,27 +556,41 @@ int main()
         scene_shader.set_uniform("material.specular", 1);
         scene_shader.set_uniform("material.shininess", settings.material_shine);
 
-        scene_shader.set_uniform("light.ambient", settings.light_ambient);
-        scene_shader.set_uniform("light.diffuse", settings.light_diffuse);
-        scene_shader.set_uniform("light.specular", settings.light_specular);
-        scene_shader.set_uniform("light.position", light_transform.position);
+        scene_shader.set_uniform("point_light.position", light_transform.position);
+        scene_shader.set_uniform("point_light.ambient", settings.light_ambient);
+        scene_shader.set_uniform("point_light.diffuse", settings.light_diffuse);
+        scene_shader.set_uniform("point_light.specular", settings.light_specular);
+        scene_shader.set_uniform("point_light.linear", settings.light_att_linear);
+        scene_shader.set_uniform("point_light.quadratic", settings.light_att_quadratic);
 
-        scene_shader.set_uniform("spotlight.position", camera_transform.position);
-        scene_shader.set_uniform("spotlight.direction", front);
-        scene_shader.set_uniform("spotlight.cutoff", glm::cos(glm::radians(settings.spotlight_cutoff)));
+        float sun_mult = 0.2f;
+        (std::sin(game_time_now.asSeconds() / 2.0f) + 1);
+        scene_shader.set_uniform("sun_light.direction", {0.2f, -1.0f, 0.3});
+        scene_shader.set_uniform("sun_light.ambient", settings.light_ambient * sun_mult);
+        scene_shader.set_uniform("sun_light.diffuse", settings.light_diffuse * sun_mult);
+        scene_shader.set_uniform("sun_light.specular", settings.light_specular * sun_mult);
+        /*
+        scene_shader.set_uniform("spotlight.position", light_transform.position);
+        scene_shader.set_uniform("spotlight.direction", {0,-1,0});
+        scene_shader.set_uniform("spotlight.cutoff",
+        glm::cos(glm::radians(settings.spotlight_cutoff)));
         //scene_shader.set_uniform("spotlight.outer_cutoff", glm::cos(glm::radians(20.5f)));
         scene_shader.set_uniform("spotlight.ambient", settings.light_ambient);
         scene_shader.set_uniform("spotlight.diffuse", settings.light_diffuse);
         scene_shader.set_uniform("spotlight.specular", settings.light_specular);
-
+        */
         scene_shader.set_uniform("is_light", false);
 
         // Set the terrain trasform and render
+        glBindTextureUnit(0, grass_texture);
+        glBindTextureUnit(1, grass_specular_texture);
         scene_shader.set_uniform("model_matrix", terrain_mat);
         glBindVertexArray(terrain_vertex_array.vao);
         glDrawElements(GL_TRIANGLES, terrain_mesh.indices.size(), GL_UNSIGNED_INT, nullptr);
 
         // Set the box transforms and render
+        glBindTextureUnit(0, crate_texture);
+        glBindTextureUnit(1, specular_texture);
         glBindVertexArray(box_vertex_array.vao);
         for (auto& box_matrix : box_mats)
         {
