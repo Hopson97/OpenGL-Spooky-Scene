@@ -38,8 +38,8 @@ namespace
 
         glm::vec3 light_direction{0.0f, -1.0f, 0.0f};
         glm::vec3 light_colour{0.8f, 0.8f, 0.8f};
-        float ambient_intensitiy = 1.0f;
-        float diffuse_intensity = 1.0f;
+        float ambient_intensitiy = 0.1f;
+        float diffuse_intensity = 0.1f;
 
         glm::vec3 point_light_colour{0.8f, 0.8f, 0.8f};
         float point_ambient_intensitiy = 1.0f;
@@ -643,8 +643,8 @@ int main()
         // Set the terrain trasform and render
         // glBindTextureUnit(0, grass_texture);
         // glBindTextureUnit(1, grass_specular_texture);
-        glBindTextureUnit(0, crate_texture);
-        glBindTextureUnit(1, specular_texture);
+        glBindTextureUnit(0, grass_texture);
+        glBindTextureUnit(1, grass_specular_texture);
         scene_shader.set_uniform("model_matrix", terrain_mat);
         glBindVertexArray(terrain_vertex_array.vao);
         glDrawElements(GL_TRIANGLES, terrain_mesh.indices.size(), GL_UNSIGNED_INT, nullptr);
