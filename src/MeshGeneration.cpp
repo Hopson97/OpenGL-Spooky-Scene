@@ -55,6 +55,7 @@ Mesh generate_cube_mesh(const glm::vec3& dimensions)
         {{w, 0, d}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}, {0.0f, -1.0f, 0.0f}}, 
         {{0, 0, d}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}, {0.0f, -1.0f, 0.0f}},
     };
+
     // clang-format on
 
     int index = 0;

@@ -35,13 +35,27 @@ namespace
     {
         bool wireframe = false;
         float material_shine = 32.0f;
-        glm::vec3 light_ambient{0.8f, 0.8f, 0.8f};
+
+        glm::vec3 light_direction{0.0f, -1.0f, 0.0f};
+        glm::vec3 light_colour{0.8f, 0.8f, 0.8f};
+        float ambient_intensitiy = 1.0f;
+        float diffuse_intensity = 1.0f;
+
+        glm::vec3 point_light_colour{0.8f, 0.8f, 0.8f};
+        float point_ambient_intensitiy = 1.0f;
+        float point_diffuse_intensity = 1.0f;
+        float point_attenuation_constant = 1.0f;
+        float point_attenuation_linear = 0.045f;
+        float point_attenuation_exponant = 0.0075f;
+
+        /*
         glm::vec3 light_diffuse{0.6f, 0.6f, 0.6f};
         glm::vec3 light_specular{1.0f, 1.0f, 1.0f};
-        float light_att_linear = 0.045;
-        float light_att_quadratic = 0.0075;
+        float light_att_linear = 0.045f;
+        float light_att_exponant = 0.0075f;
 
         float spotlight_cutoff = 12.5f;
+        */
     };
 
     template <int Ticks>
@@ -195,28 +209,52 @@ namespace GUI
             nk_labelf(ctx, NK_STATIC, "Position: (%f, %f, %f)", p.x, p.y, p.z);
             nk_labelf(ctx, NK_STATIC, "Rotation: (%f, %f, %f)", r.x, r.y, r.z);
         }
-        nk_end(ctx);
 
+        nk_end(ctx);
+        auto& s = settings;
         if (ImGui::Begin("Debug Window"))
         {
             ImGui::Text("Position: (%f, %f, %f)", p.x, p.y, p.z);
             ImGui::Text("Rotation: (%f, %f, %f)", r.x, r.y, r.z);
 
+            ImGui::Separator();
+            ImGui::Text("Directional Light");
+            if (ImGui::SliderFloat3("Direction", &settings.light_direction[0], -1.0f, 1.0f,
+                                    "%.2f"))
+            {
+                settings.light_direction = glm::normalize(settings.light_direction);
+            }
+            ImGui::SliderFloat3("Colour", &s.light_colour[0], 0.0f, 1.0f, "%.2f");
+            ImGui::SliderFloat("Ambient", &s.ambient_intensitiy, 0.0f, 1.0f);
+            ImGui::SliderFloat("Duiffuse", &s.diffuse_intensity, 0.0f, 1.0f);
+
+            ImGui::Separator();
+            ImGui::Text("Point Light");
+            ImGui::SliderFloat3("Colourr", &s.point_light_colour[0], 0.0f, 1.0f, "%.2f");
+            ImGui::SliderFloat("Ambientt", &s.point_ambient_intensitiy, 0.0f, 1.0f);
+            ImGui::SliderFloat("Duiffusee", &s.point_diffuse_intensity, 0.0f, 1.0f);
+
+            ImGui::SliderFloat("Constantt", &s.point_attenuation_constant, 0.0f, 1.0f);
+            ImGui::SliderFloat("exponant", &s.point_attenuation_exponant, 0.000007f, 0.03f);
+            ImGui::SliderFloat("Linear", &s.point_attenuation_linear, 0.0014f, 0.14f);
+
+
             ImGui::SliderFloat("Material Shine", &settings.material_shine, 1.0f, 64.0f);
+            /*
 
             ImGui::SliderFloat("Light Attenuation Linear", &settings.light_att_linear, 0.14f,
                                0.0014f);
-            ImGui::SliderFloat("Light Attenuation Quadratic", &settings.light_att_quadratic,
+            ImGui::SliderFloat("Light Attenuation exponant", &settings.light_att_exponant,
                                0.000007f, 0.03f);
 
-            ImGui::SliderFloat3("Light Ambient", &settings.light_ambient[0], 0.0f, 1.0f,
-                                "%.2f");
+
             ImGui::SliderFloat3("Light Diffuse", &settings.light_diffuse[0], 0.0f, 1.0f,
                                 "%.2f");
             ImGui::SliderFloat3("Light Specular", &settings.light_specular[0], 0.0f, 1.0f,
                                 "%.2f");
 
             ImGui::SliderFloat("Spotlight Cutoff", &settings.spotlight_cutoff, 1.0f, 90.0f);
+            */
         }
         ImGui::End();
     }
@@ -252,8 +290,8 @@ int main()
     // ==== Create the Meshes ====
     // ---------------------------
     Mesh terrain_mesh = generate_terrain_mesh(256, 512);
-    Mesh light_mesh = generate_cube_mesh({0.2f, 0.2f, 0.2f});
-    Mesh box_mesh = generate_cube_mesh({3.0f,3.0f, 3.0f});
+    Mesh light_mesh = generate_cube_mesh({0.2f, 1.2f, 0.2f});
+    Mesh box_mesh = generate_cube_mesh({3.0f, 3.0f, 3.0f});
 
     // ----------------------------------------
     // ==== Create the OpenGL vertex array ====
@@ -554,36 +592,59 @@ int main()
 
         scene_shader.set_uniform("material.diffuse", 0);
         scene_shader.set_uniform("material.specular", 1);
-        scene_shader.set_uniform("material.shininess", settings.material_shine);
+        // scene_shader.set_uniform("material.shininess", settings.material_shine);
 
-        scene_shader.set_uniform("point_light.position", light_transform.position);
-        scene_shader.set_uniform("point_light.ambient", settings.light_ambient);
+        // // scene_shader.set_uniform("point_light.position", light_transform.position);
+        //  scene_shader.set_uniform("point_light.ambient", settings.light_colour);
+
+        /*
         scene_shader.set_uniform("point_light.diffuse", settings.light_diffuse);
         scene_shader.set_uniform("point_light.specular", settings.light_specular);
         scene_shader.set_uniform("point_light.linear", settings.light_att_linear);
-        scene_shader.set_uniform("point_light.quadratic", settings.light_att_quadratic);
+        scene_shader.set_uniform("point_light.exponant", settings.light_att_exponant);
+        */
 
-        float sun_mult = 0.2f;
-        (std::sin(game_time_now.asSeconds() / 2.0f) + 1);
-        scene_shader.set_uniform("sun_light.direction", {0.2f, -1.0f, 0.3});
-        scene_shader.set_uniform("sun_light.ambient", settings.light_ambient * sun_mult);
-        scene_shader.set_uniform("sun_light.diffuse", settings.light_diffuse * sun_mult);
-        scene_shader.set_uniform("sun_light.specular", settings.light_specular * sun_mult);
+        float sun_mult = 0.8f;
+        //(std::sin(game_time_now.asSeconds() / 2.0f) + 1);
+        scene_shader.set_uniform("sun.direction", settings.light_direction);
+        scene_shader.set_uniform("sun.base.colour", settings.light_colour * sun_mult);
+        scene_shader.set_uniform("sun.base.ambient_intensity", settings.ambient_intensitiy);
+        scene_shader.set_uniform("sun.base.diffuse_intensity", settings.diffuse_intensity);
+
+        scene_shader.set_uniform("point_light.base.colour",
+                                 settings.point_light_colour);
+        scene_shader.set_uniform("point_light.base.ambient_intensity",
+                                 settings.point_ambient_intensitiy);
+        scene_shader.set_uniform("point_light.base.diffuse_intensity",
+                                 settings.point_diffuse_intensity);
+
+        scene_shader.set_uniform("point_light.position", light_transform.position);
+        scene_shader.set_uniform("point_light.att.constant",
+                                 settings.point_attenuation_constant);
+        scene_shader.set_uniform("point_light.att.linear",
+                                 settings.point_attenuation_linear);
+        scene_shader.set_uniform("point_light.att.exponant",
+                                 settings.point_attenuation_exponant);
+
+        // scene_shader.set_uniform("sun_light.diffuse", settings.light_diffuse * sun_mult);
+        // scene_shader.set_uniform("sun_light.specular", settings.light_specular * sun_mult);
         /*
         scene_shader.set_uniform("spotlight.position", light_transform.position);
         scene_shader.set_uniform("spotlight.direction", {0,-1,0});
         scene_shader.set_uniform("spotlight.cutoff",
         glm::cos(glm::radians(settings.spotlight_cutoff)));
         //scene_shader.set_uniform("spotlight.outer_cutoff", glm::cos(glm::radians(20.5f)));
-        scene_shader.set_uniform("spotlight.ambient", settings.light_ambient);
+        scene_shader.set_uniform("spotlight.ambient", settings.light_colour);
         scene_shader.set_uniform("spotlight.diffuse", settings.light_diffuse);
         scene_shader.set_uniform("spotlight.specular", settings.light_specular);
         */
         scene_shader.set_uniform("is_light", false);
 
         // Set the terrain trasform and render
-        glBindTextureUnit(0, grass_texture);
-        glBindTextureUnit(1, grass_specular_texture);
+        // glBindTextureUnit(0, grass_texture);
+        // glBindTextureUnit(1, grass_specular_texture);
+        glBindTextureUnit(0, crate_texture);
+        glBindTextureUnit(1, specular_texture);
         scene_shader.set_uniform("model_matrix", terrain_mat);
         glBindVertexArray(terrain_vertex_array.vao);
         glDrawElements(GL_TRIANGLES, terrain_mesh.indices.size(), GL_UNSIGNED_INT, nullptr);
