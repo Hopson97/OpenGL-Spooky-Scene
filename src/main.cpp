@@ -77,9 +77,9 @@ namespace
         Settings()
         {
             dir_light.direction = {0.3f, -8.0f, 0.3f};
-            dir_light.ambient_intensity = 0.1f;
-            dir_light.diffuse_intensity = 0.1f;
-            dir_light.specular_intensity = 0.1f;
+            dir_light.ambient_intensity = 0.02f;
+            dir_light.diffuse_intensity = 0.02f;
+            dir_light.specular_intensity = 0.0f;
 
             point_light.ambient_intensity = 0.3f;
             point_light.diffuse_intensity = 1.0f;
@@ -90,8 +90,8 @@ namespace
 
             spot_light.transform.position = {40.0f, 10.0f, 20.0f};
             spot_light.transform.rotation = {0.6f, -0.65f, 0.5f};
-            spot_light.ambient_intensity = 0.4f;
-            spot_light.diffuse_intensity = 1.0f;
+            spot_light.ambient_intensity = 0.012;
+            spot_light.diffuse_intensity = 0.35;
             spot_light.specular_intensity = 1.0f;
             spot_light.att.constant = 0.2f;
             spot_light.att.linear = 0.016f;
@@ -104,7 +104,7 @@ namespace
         bool wireframe = false;
         float material_shine = 32.0f;
 
-        bool grass = false;
+        bool grass = true;
 
         /*
         glm::vec3 light_ambient{0.8f, 0.8f, 0.8f};
@@ -532,19 +532,20 @@ int main()
         float z = static_cast<float>(rand() % 120) + 3;
         float r = static_cast<float>(rand() % 360);
 
-        box_transforms.push_back({{x, -5.0f, z}, {0.0f, r, 0}});
+        box_transforms.push_back({{x, 0.0f, z}, {0.0f, r, 0}});
 
         x = static_cast<float>(rand() % 120) + 3;
         z = static_cast<float>(rand() % 120) + 3;
 
-        people_transforms.push_back({{x, -5.0f, z}, {0.0f, 0.0, 0}});
+        people_transforms.push_back({{x, 0.0f, z}, {0.0f, 0.0, 0}});
     }
 
-    camera_transform.position = {80.0f, 12.0f, 35.0f};
-    camera_transform.rotation = {-33.0f, 201.0f, 0.0f};
-    light_transform.position = {20.0f, 3.0f, 20.0f};
+    // camera_transform.position = {80.0f, 12.0f, 35.0f};
+    // camera_transform.rotation = {-33.0f, 201.0f, 0.0f};
 
-    terrain_transform.position.y -= 5.0f;
+    camera_transform.position = {80.0f, 1.0f, 35.0f};
+    camera_transform.rotation = {0.0f, 201.0f, 0.0f};
+    light_transform.position = {20.0f, 5.0f, 20.0f};
 
     glm::mat4 camera_projection =
         glm::perspective(glm::radians(75.0f), 1600.0f / 900.0f, 1.0f, 256.0f);
