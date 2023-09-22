@@ -1,3 +1,5 @@
+#include <numbers>
+
 #include <SFML/Graphics/Image.hpp>
 #include <SFML/Window/Event.hpp>
 #include <SFML/Window/Window.hpp>
@@ -5,11 +7,10 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <imgui.h>
-#include <nuklear_sfml/nuklear_def.h>
-#include <nuklear_sfml/nuklear_sfml_gl3.h>
-
 #include <imgui_sfml/imgui-SFML.h>
 #include <imgui_sfml/imgui_impl_opengl3.h>
+#include <nuklear_sfml/nuklear_def.h>
+#include <nuklear_sfml/nuklear_sfml_gl3.h>
 
 #include "GLDebugEnable.h"
 #include "MeshGeneration.h"
@@ -21,6 +22,7 @@ namespace
     struct Transform
     {
         glm::vec3 position{0.0f};
+
         glm::vec3 rotation{0.0f};
     };
 
@@ -31,10 +33,80 @@ namespace
         GLuint ebo = 0;
     };
 
+    // -----------------------------
+    // ==== Lighting structures ====
+    // -----------------------------
+    struct LightBase
+    {
+        glm::vec3 colour = {1, 1, 1};
+        float ambient_intensity = 0.2f;
+        float diffuse_intensity = 0.2f;
+        float specular_intensity = 0.2f;
+    };
+
+    struct Attenuation
+    {
+        float constant = 1.0f;
+        float linear = 0.045f;
+        float exponant = 0.0075f;
+    };
+
+    struct DirectionalLight : public LightBase
+    {
+        glm::vec3 direction = {0, -1, 0};
+    };
+
+    struct PointLight : public LightBase
+    {
+        Attenuation att;
+        glm::vec3 position = {0, 0, 0};
+    };
+
+    struct SpotLight : public LightBase
+    {
+        Attenuation att;
+        Transform transform;
+        float cutoff = 12.5;
+    };
+
+    // --------------------------
+    // ==== Settings via GUI ====
+    // --------------------------
     struct Settings
     {
+        Settings()
+        {
+            dir_light.direction = {0.3f, -8.0f, 0.3f};
+            dir_light.ambient_intensity = 0.1f;
+            dir_light.diffuse_intensity = 0.1f;
+            dir_light.specular_intensity = 0.1f;
+
+            point_light.ambient_intensity = 0.3f;
+            point_light.diffuse_intensity = 1.0f;
+            point_light.specular_intensity = 1.0f;
+            point_light.att.constant = 1.0f;
+            point_light.att.linear = 0.045f;
+            point_light.att.exponant = 0.0075f;
+
+            spot_light.transform.position = {40.0f, 10.0f, 20.0f};
+            spot_light.transform.rotation = {0.6f, -0.65f, 0.5f};
+            spot_light.ambient_intensity = 0.4f;
+            spot_light.diffuse_intensity = 1.0f;
+            spot_light.specular_intensity = 1.0f;
+            spot_light.att.constant = 0.2f;
+            spot_light.att.linear = 0.016f;
+            spot_light.att.exponant = 0.003f;
+        }
+        DirectionalLight dir_light;
+        PointLight point_light;
+        SpotLight spot_light;
+
         bool wireframe = false;
         float material_shine = 32.0f;
+
+        bool grass = false;
+
+        /*
         glm::vec3 light_ambient{0.8f, 0.8f, 0.8f};
         glm::vec3 light_diffuse{0.6f, 0.6f, 0.6f};
         glm::vec3 light_specular{1.0f, 1.0f, 1.0f};
@@ -42,6 +114,7 @@ namespace
         float light_att_quadratic = 0.0075;
 
         float spotlight_cutoff = 12.5f;
+        */
     };
 
     template <int Ticks>
@@ -184,6 +257,22 @@ namespace GUI
         nk_sfml_handle_event(&e);
     }
 
+    void _base_light_widgets(LightBase& light)
+    {
+        ImGui::SliderFloat3("Colour", &light.colour[0], 0.0, 1.0);
+        ImGui::SliderFloat("Ambient Intensity", &light.ambient_intensity, 0.0, 1.0);
+        ImGui::SliderFloat("Diffuse Intensity", &light.diffuse_intensity, 0.0, 1.0);
+        ImGui::SliderFloat("Specular Intensity", &light.specular_intensity, 0.0, 1.0);
+    }
+
+    void _attenuation_widgets(Attenuation& attenuation)
+    {
+        ImGui::SliderFloat("Attenuation Constant", &attenuation.constant, 0.0, 1.0f);
+        ImGui::SliderFloat("Attenuation Linear", &attenuation.linear, 0.14f, 0.0014f, "%.6f");
+        ImGui::SliderFloat("Attenuation Quadratic", &attenuation.exponant, 0.000007f, 0.03f,
+                           "%.6f");
+    }
+
     void debug_window(const Transform& transform, Settings& settings)
     {
         assert(ctx);
@@ -197,6 +286,7 @@ namespace GUI
         }
         nk_end(ctx);
 
+        // clang-format off
         if (ImGui::Begin("Debug Window"))
         {
             ImGui::Text("Position: (%f, %f, %f)", p.x, p.y, p.z);
@@ -204,20 +294,44 @@ namespace GUI
 
             ImGui::SliderFloat("Material Shine", &settings.material_shine, 1.0f, 64.0f);
 
-            ImGui::SliderFloat("Light Attenuation Linear", &settings.light_att_linear, 0.14f,
-                               0.0014f);
-            ImGui::SliderFloat("Light Attenuation Quadratic", &settings.light_att_quadratic,
-                               0.000007f, 0.03f);
+            ImGui::Separator();
+            ImGui::Checkbox("Grass ground?", &settings.grass);
 
-            ImGui::SliderFloat3("Light Ambient", &settings.light_ambient[0], 0.0f, 1.0f,
-                                "%.2f");
-            ImGui::SliderFloat3("Light Diffuse", &settings.light_diffuse[0], 0.0f, 1.0f,
-                                "%.2f");
-            ImGui::SliderFloat3("Light Specular", &settings.light_specular[0], 0.0f, 1.0f,
-                                "%.2f");
+            ImGui::Separator();
 
-            ImGui::SliderFloat("Spotlight Cutoff", &settings.spotlight_cutoff, 1.0f, 90.0f);
+            ImGui::PushID("DirLight");
+            ImGui::Text("Directional light");
+            if (ImGui::SliderFloat3("Direction", &settings.dir_light.direction[0], -1.0, 1.0))
+            {
+                settings.dir_light.direction = glm::normalize(settings.dir_light.direction);
+            }
+            _base_light_widgets(settings.dir_light);
+            ImGui::PopID();
+
+            ImGui::Separator();
+
+            ImGui::PushID("PointLight");
+            ImGui::Text("Point light");
+            _base_light_widgets(settings.point_light);
+            _attenuation_widgets(settings.point_light.att);
+            ImGui::PopID();
+
+            ImGui::Separator();
+
+            ImGui::PushID("SpotLight");
+            ImGui::Text("Spot light");
+            ImGui::SliderFloat3("Position", &settings.spot_light.transform.position[0], 0, 100);
+            if (ImGui::SliderFloat3("Direction", &settings.spot_light.transform.rotation[0],-1.0, 1.0))
+            {
+                settings.spot_light.transform.rotation = glm::normalize(settings.spot_light.transform.rotation);
+            }
+            ImGui::SliderFloat("Cutoff", &settings.spot_light.cutoff, 0.0, 90.0f);
+            _base_light_widgets(settings.spot_light);
+            _attenuation_widgets(settings.spot_light.att);
+            ImGui::PopID();
         }
+        // clang-format on
+
         ImGui::End();
     }
 
@@ -251,9 +365,10 @@ int main()
     // ---------------------------
     // ==== Create the Meshes ====
     // ---------------------------
-    Mesh terrain_mesh = generate_terrain_mesh(256, 512);
+    Mesh billboard_mesh = generate_quad_mesh(1.0f, 2.0f);
+    Mesh terrain_mesh = generate_terrain_mesh(128, 128);
     Mesh light_mesh = generate_cube_mesh({0.2f, 0.2f, 0.2f});
-    Mesh box_mesh = generate_cube_mesh({3.0f,3.0f, 3.0f});
+    Mesh box_mesh = generate_cube_mesh({2.0f, 2.0f, 2.0f});
 
     // ----------------------------------------
     // ==== Create the OpenGL vertex array ====
@@ -302,6 +417,7 @@ int main()
         return vertex_array;
     };
 
+    auto billboard_vertex_array = buffer_mesh(billboard_mesh);
     auto terrain_vertex_array = buffer_mesh(terrain_mesh);
     auto light_vertex_array = buffer_mesh(light_mesh);
     auto box_vertex_array = buffer_mesh(box_mesh);
@@ -318,6 +434,7 @@ int main()
         // Load the texture from file
         sf::Image image;
         image.loadFromFile(path.string());
+        image.flipVertically();
         auto w = image.getSize().x;
         auto h = image.getSize().y;
         auto data = image.getPixelsPtr();
@@ -340,10 +457,11 @@ int main()
     };
 
     GLuint person_texture = load_texture("assets/textures/person.png");
+    GLuint person_specular = load_texture("assets/textures/person_specular.png");
     GLuint grass_texture = load_texture("assets/textures/grass_03.png");
-    GLuint grass_specular_texture = load_texture("assets/textures/grass_specular.png");
+    GLuint grass_crate_specular_texture = load_texture("assets/textures/grass_specular.png");
     GLuint crate_texture = load_texture("assets/textures/crate.png");
-    GLuint specular_texture = load_texture("assets/textures/crate_specular.png");
+    GLuint crate_specular_texture = load_texture("assets/textures/crate_specular.png");
 
     // ---------------------------------------
     // ==== Create the OpenGL Framebuffer ====
@@ -407,24 +525,29 @@ int main()
     Transform terrain_transform;
     Transform light_transform;
     std::vector<Transform> box_transforms;
-
+    std::vector<Transform> people_transforms;
     for (int i = 0; i < 25; i++)
     {
-        float x = static_cast<float>(rand() % 100);
-        float y = static_cast<float>(rand() % 360);
-        float z = static_cast<float>(rand() % 100);
+        float x = static_cast<float>(rand() % 120) + 3;
+        float z = static_cast<float>(rand() % 120) + 3;
+        float r = static_cast<float>(rand() % 360);
 
-        box_transforms.push_back({{x, -5.0f, z}, {0.0f, y, 0}});
+        box_transforms.push_back({{x, -5.0f, z}, {0.0f, r, 0}});
+
+        x = static_cast<float>(rand() % 120) + 3;
+        z = static_cast<float>(rand() % 120) + 3;
+
+        people_transforms.push_back({{x, -5.0f, z}, {0.0f, 0.0, 0}});
     }
 
-    camera_transform.rotation.y = 90.0f;
-    camera_transform.position = {20.0f, 1.0f, 20.0f};
+    camera_transform.position = {80.0f, 12.0f, 35.0f};
+    camera_transform.rotation = {-33.0f, 201.0f, 0.0f};
     light_transform.position = {20.0f, 3.0f, 20.0f};
 
     terrain_transform.position.y -= 5.0f;
 
     glm::mat4 camera_projection =
-        glm::perspective(glm::radians(75.0f), 1600.0f / 900.0f, 1.0f, 100.0f);
+        glm::perspective(glm::radians(75.0f), 1600.0f / 900.0f, 1.0f, 256.0f);
     glm::vec3 up = {0, 1, 0};
 
     Settings settings;
@@ -489,8 +612,10 @@ int main()
             });
 
         // -------------------------------
-        // ==== Transform Calculation ====
+        // ==== Transform Calculations ====
         // -------------------------------
+
+        // View/ Camera matrix
         glm::mat4 view_matrix{1.0f};
         auto x_rot = glm::radians(camera_transform.rotation.x);
         auto y_rot = glm::radians(camera_transform.rotation.y);
@@ -503,36 +628,26 @@ int main()
 
         view_matrix = glm::lookAt(camera_transform.position, centre, up);
 
-        // Calculate the terrain postion and rotation
-        glm::mat4 terrain_mat{1.0f};
+        // Model matrices
+        auto create_model_matrix = [](const Transform& transform)
+        {
+            glm::mat4 mat{1.0f};
+            mat = glm::translate(mat, transform.position);
+            mat = glm::rotate(mat, glm::radians(transform.rotation.x), {1, 0, 0});
+            mat = glm::rotate(mat, glm::radians(transform.rotation.y), {0, 1, 0});
+            mat = glm::rotate(mat, glm::radians(transform.rotation.z), {0, 0, 1});
 
-        terrain_mat = glm::translate(terrain_mat, terrain_transform.position);
+            return mat;
+        };
 
-        // Calculate the light postion and rotation
-        glm::mat4 light_mat{1.0f};
+        auto terrain_mat = create_model_matrix(terrain_transform);
+        auto light_mat = create_model_matrix(light_transform);
+        auto spot_light_mat = create_model_matrix(settings.spot_light.transform);
 
-        light_mat = glm::translate(light_mat, light_transform.position);
-
-        light_mat =
-            glm::rotate(light_mat, glm::radians(light_transform.rotation.x), {1, 0, 0});
-        light_mat =
-            glm::rotate(light_mat, glm::radians(light_transform.rotation.y), {0, 1, 0});
-        light_mat =
-            glm::rotate(light_mat, glm::radians(light_transform.rotation.z), {0, 0, 1});
-
-        // Calulate the boxes
         std::vector<glm::mat4> box_mats;
         for (auto& box_transform : box_transforms)
         {
-            glm::mat4 box_mat{1.0f};
-
-            box_mat = glm::translate(box_mat, box_transform.position);
-
-            box_mat = glm::rotate(box_mat, glm::radians(box_transform.rotation.x), {1, 0, 0});
-            box_mat = glm::rotate(box_mat, glm::radians(box_transform.rotation.y), {0, 1, 0});
-            box_mat = glm::rotate(box_mat, glm::radians(box_transform.rotation.z), {0, 0, 1});
-
-            box_mats.push_back(box_mat);
+            box_mats.push_back(create_model_matrix(box_transform));
         }
 
         // -----------------------
@@ -545,7 +660,8 @@ int main()
         glEnable(GL_CULL_FACE);
         glCullFace(GL_BACK);
 
-        // Set the render states
+        // Set the shader states
+        //......................
         scene_shader.bind();
         scene_shader.set_uniform("projection_matrix", camera_projection);
         scene_shader.set_uniform("view_matrix", view_matrix);
@@ -555,42 +671,65 @@ int main()
         scene_shader.set_uniform("material.diffuse", 0);
         scene_shader.set_uniform("material.specular", 1);
         scene_shader.set_uniform("material.shininess", settings.material_shine);
+        // clang-format off
 
+        auto upload_base_light =
+            [](Shader& shader, const LightBase& light, const std::string& uniform)
+        {
+            shader.set_uniform(uniform + ".base.colour",               light.colour);
+            shader.set_uniform(uniform + ".base.ambient_intensity",    light.ambient_intensity);
+            shader.set_uniform(uniform + ".base.diffuse_intensity",    light.diffuse_intensity);
+            shader.set_uniform(uniform + ".base.specular_intensity",   light.specular_intensity);
+        };
+        auto upload_attenuation =
+            [](Shader& shader, const Attenuation& attenuation, const std::string& uniform)
+        {
+            shader.set_uniform(uniform + ".att.constant",   attenuation.constant);
+            shader.set_uniform(uniform + ".att.linear",     attenuation.linear);
+            shader.set_uniform(uniform + ".att.exponant",   attenuation.exponant);
+        };
+
+        // Set the directional light shader uniforms
+        scene_shader.set_uniform("dir_light.direction", settings.dir_light.direction);
+        upload_base_light(scene_shader,                 settings.dir_light, "dir_light");
+
+        // Set the point light shader uniforms
         scene_shader.set_uniform("point_light.position", light_transform.position);
-        scene_shader.set_uniform("point_light.ambient", settings.light_ambient);
-        scene_shader.set_uniform("point_light.diffuse", settings.light_diffuse);
-        scene_shader.set_uniform("point_light.specular", settings.light_specular);
-        scene_shader.set_uniform("point_light.linear", settings.light_att_linear);
-        scene_shader.set_uniform("point_light.quadratic", settings.light_att_quadratic);
+        upload_base_light(scene_shader,                     settings.point_light, "point_light");
+        upload_attenuation(scene_shader,                    settings.point_light.att, "point_light");
 
-        float sun_mult = 0.2f;
-        (std::sin(game_time_now.asSeconds() / 2.0f) + 1);
-        scene_shader.set_uniform("sun_light.direction", {0.2f, -1.0f, 0.3});
-        scene_shader.set_uniform("sun_light.ambient", settings.light_ambient * sun_mult);
-        scene_shader.set_uniform("sun_light.diffuse", settings.light_diffuse * sun_mult);
-        scene_shader.set_uniform("sun_light.specular", settings.light_specular * sun_mult);
-        /*
-        scene_shader.set_uniform("spotlight.position", light_transform.position);
-        scene_shader.set_uniform("spotlight.direction", {0,-1,0});
-        scene_shader.set_uniform("spotlight.cutoff",
-        glm::cos(glm::radians(settings.spotlight_cutoff)));
-        //scene_shader.set_uniform("spotlight.outer_cutoff", glm::cos(glm::radians(20.5f)));
-        scene_shader.set_uniform("spotlight.ambient", settings.light_ambient);
-        scene_shader.set_uniform("spotlight.diffuse", settings.light_diffuse);
-        scene_shader.set_uniform("spotlight.specular", settings.light_specular);
-        */
+        // Set the spot light shader uniforms
+        scene_shader.set_uniform("spot_light.cutoff",       glm::cos(glm::radians(25.5f)));
+        //scene_shader.set_uniform("spot_light.position",     settings.spot_light.transform.position);
+        //scene_shader.set_uniform("spot_light.direction",    settings.spot_light.transform.rotation);
+        scene_shader.set_uniform("spot_light.position",     camera_transform.position);
+        scene_shader.set_uniform("spot_light.direction",    front);
+        upload_base_light(scene_shader,                     settings.spot_light, "spot_light");
+        upload_attenuation(scene_shader,                    settings.spot_light.att, "spot_light");
+
+        // clang-format on
+
         scene_shader.set_uniform("is_light", false);
 
         // Set the terrain trasform and render
-        glBindTextureUnit(0, grass_texture);
-        glBindTextureUnit(1, grass_specular_texture);
+        if (settings.grass)
+        {
+            glBindTextureUnit(0, grass_texture);
+            glBindTextureUnit(1, grass_crate_specular_texture);
+        }
+        else
+        {
+            glBindTextureUnit(0, crate_texture);
+            glBindTextureUnit(1, crate_specular_texture);
+        }
+
         scene_shader.set_uniform("model_matrix", terrain_mat);
         glBindVertexArray(terrain_vertex_array.vao);
         glDrawElements(GL_TRIANGLES, terrain_mesh.indices.size(), GL_UNSIGNED_INT, nullptr);
 
         // Set the box transforms and render
         glBindTextureUnit(0, crate_texture);
-        glBindTextureUnit(1, specular_texture);
+        glBindTextureUnit(1, crate_specular_texture);
         glBindVertexArray(box_vertex_array.vao);
         for (auto& box_matrix : box_mats)
         {
@@ -598,10 +737,51 @@ int main()
             glDrawElements(GL_TRIANGLES, box_mesh.indices.size(), GL_UNSIGNED_INT, nullptr);
         }
 
+        // Draw billboard
+        auto pi = static_cast<float>(std::numbers::pi);
+        auto xd = 20.0f - camera_transform.position.x;
+        auto yd = 20.0f - camera_transform.position.z;
+        auto r = std::atan2(xd, yd) + pi;
+
+        glm::mat4 billboard_mat{1.0f};
+        billboard_mat = glm::translate(billboard_mat, {20, 1, 20});
+        billboard_mat = glm::rotate(billboard_mat, 0.0f, {1, 0, 0});
+        billboard_mat = glm::rotate(billboard_mat, r, {0, 1, 0});
+        billboard_mat = glm::rotate(billboard_mat, pi, {0, 0, 1});
+
+        glBindTextureUnit(0, person_texture);
+        scene_shader.set_uniform("model_matrix", billboard_mat);
+        glBindVertexArray(billboard_vertex_array.vao);
+        glDrawElements(GL_TRIANGLES, billboard_mesh.indices.size(), GL_UNSIGNED_INT, nullptr);
+
+        glBindTextureUnit(0, person_texture);
+        glBindTextureUnit(1, person_specular);
+        glBindVertexArray(billboard_vertex_array.vao);
+        for (auto& transform : people_transforms)
+        {
+            // Draw billboard
+            auto pi = static_cast<float>(std::numbers::pi);
+            auto xd = transform.position.x - camera_transform.position.x;
+            auto yd = transform.position.z - camera_transform.position.z;
+            auto r = std::atan2(xd, yd) + pi;
+
+            glm::mat4 billboard_mat{1.0f};
+            billboard_mat = glm::translate(billboard_mat, transform.position);
+            billboard_mat = glm::rotate(billboard_mat, r, {0, 1, 0});
+            // billboard_mat = glm::rotate(billboard_mat, pi, {0, 0, 1});
+
+            scene_shader.set_uniform("model_matrix", billboard_mat);
+            glDrawElements(GL_TRIANGLES, billboard_mesh.indices.size(), GL_UNSIGNED_INT,
+                           nullptr);
+        }
+
         // Set the light trasform and render
         scene_shader.set_uniform("is_light", true);
         scene_shader.set_uniform("model_matrix", light_mat);
         glBindVertexArray(light_vertex_array.vao);
+        glDrawElements(GL_TRIANGLES, light_mesh.indices.size(), GL_UNSIGNED_INT, nullptr);
+
+        scene_shader.set_uniform("model_matrix", spot_light_mat);
         glDrawElements(GL_TRIANGLES, light_mesh.indices.size(), GL_UNSIGNED_INT, nullptr);
 
         // --------------------------
@@ -621,6 +801,7 @@ int main()
         // --------------------------
         // ==== End Frame ====
         // --------------------------
+        // ImGui::ShowDemoWindow();
         GUI::debug_window(camera_transform, settings);
 
         GUI::render();

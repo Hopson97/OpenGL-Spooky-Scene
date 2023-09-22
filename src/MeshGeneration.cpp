@@ -1,12 +1,12 @@
 #include "MeshGeneration.h"
 
-Mesh generate_quad_mesh(float size)
+Mesh generate_quad_mesh(float w, float h)
 {
     Mesh mesh;
-    mesh.vertices = {{{size, size, 0.0f}, {0.2f, 0.2f, 0.5f}, {0.0f, 1.0f}, {0, 0, 1}},
-                     {{-size, size, 0.0f}, {0.2f, 0.5f, 0.5f}, {1.0f, 1.0f}, {0, 0, 1}},
-                     {{-size, -size, 0.0f}, {0.2f, 0.5f, 1.0f}, {1.0f, 0.0f}, {0, 0, 1}},
-                     {{size, -size, 0.0f}, {0.2f, 0.5f, 0.5f}, {0.0f, 0.0f}, {0, 0, 1}}
+    mesh.vertices = {{{w, h, 0.0f}, {0.2f, 0.2f, 0.5f}, {0.0f, 1.0f}, {0, 0, 1}},
+                     {{0, h, 0.0f}, {0.2f, 0.5f, 0.5f}, {1.0f, 1.0f}, {0, 0, 1}},
+                     {{0, 0, 0.0f}, {0.2f, 0.5f, 1.0f}, {1.0f, 0.0f}, {0, 0, 1}},
+                     {{w, 0, 0.0f}, {0.2f, 0.5f, 0.5f}, {0.0f, 0.0f}, {0, 0, 1}}
 
     };
 
@@ -84,8 +84,6 @@ Mesh generate_terrain_mesh(int size, int edgeVertices)
             GLfloat fz = static_cast<GLfloat>(z);
             GLfloat fx = static_cast<GLfloat>(x);
 
-            int hx = x + 1;
-            int hz = z + 1;
 
             Vertex vertex;
             vertex.position.x = fx / fEdgeVertexCount * size;
