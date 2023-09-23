@@ -1,6 +1,17 @@
-# dsa_practice
+# OpenGL Spooky Scene
 
-description here
+A """Spooky""" scene made with OpenGL, aka just some dramatic lighting and a bunch of creepy billboards.
+
+This was mostly made just as personal reference on how to do certain techniques in OpenGL such as direct state access, billboarding, and lighting effects, hence the majority of the code is in the main.cpp file and there are many comments explaining what is going on.
+
+Also includes support for model loading, though the model is not included in the repo just to reduce the size. However, this can be easily added by downloading the model from [sketchfab](https://learnopengl.com/data/models/backpack.zip) and placing it in the `assets/models` directory. The original can downloaded in other formats [here](https://sketchfab.com/3d-models/survival-guitar-backpack-799f8c4511f84fab8c3f12887f7e6b36) if needed.
+
+The majority of project was learned from the following:
+
+- [LearnOpenGL](https://learnopengl.com/)
+- [OGLDev](https://www.ogldev.org/)
+
+## Building and Running
 
 ### Windows (Visual Studio)
 
@@ -58,5 +69,3 @@ To build and run in release mode, simply add the `release` suffix:
 sh scripts/build.sh release
 sh scripts/run.sh release
 ```
-
-[]: https://www.sfml-dev.org/download/sfml/2.5.1/
