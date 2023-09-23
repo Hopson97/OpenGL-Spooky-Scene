@@ -393,7 +393,7 @@ int main()
                 light_transform.position.z +=
                     glm::cos(game_time_now.asSeconds() * 0.55f) * dt.asSeconds() * 3.0f;
 
-                settings.spot_light.cutoff -= 0.01;
+             //   settings.spot_light.cutoff -= 0.01;
             });
 
         // -------------------------------
@@ -509,8 +509,8 @@ int main()
         glDrawElements(GL_TRIANGLES, terrain_mesh.indices.size(), GL_UNSIGNED_INT, nullptr);
 
         // Set the box transforms and render
-        glBindTextureUnit(0, grass_texture);
-        glBindTextureUnit(1, grass_specular);
+        glBindTextureUnit(0, crate_texture);
+        glBindTextureUnit(1, crate_specular_texture);
         glBindVertexArray(box_vertex_array.vao);
         for (auto& box_matrix : box_mats)
         {
