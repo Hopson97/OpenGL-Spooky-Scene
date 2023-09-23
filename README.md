@@ -2,7 +2,7 @@
 
 A """Spooky""" scene made with OpenGL, aka just some dramatic lighting and a bunch of creepy billboards.
 
-This was made as reference on how to use OpenGL 4.6 (direct state access) to do lighting effects, framebuffers, billboarding, and model loading. For this reason, the majority of the code is in main.cpp in a procedural style to keep it as simple as possible. 
+This was made as reference on how to use OpenGL 4.5 (direct state access) to do lighting effects, framebuffers, billboarding, and model loading. For this reason, the majority of the code is in main.cpp in a procedural style to keep it as simple as possible. 
 
 The model is not included in the repo to reduce the size, but it can be downloaded from [sketchfab](https://learnopengl.com/data/models/backpack.zip) and placing it in the `assets/models` directory. The original can also downloaded in other formats [here](https://sketchfab.com/3d-models/survival-guitar-backpack-799f8c4511f84fab8c3f12887f7e6b36).
 
