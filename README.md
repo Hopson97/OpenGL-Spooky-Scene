@@ -10,6 +10,14 @@ The majority of project was learned from the following:
 
 - [LearnOpenGL](https://learnopengl.com/)
 - [OGLDev](https://www.ogldev.org/)
+- [Guide to Modern OpenGL Functions](https://github.com/fendevel/Guide-to-Modern-OpenGL-Functions)-
+- [OpenGL 4.6 Examples](https://github.com/rtryan98/OpenGL)
+
+## Screenshots
+
+![Screenshot 1](assets/screenshots/1.png)
+![Screenshot 2](assets/screenshots/2.png)
+![Screenshot 3](assets/screenshots/3.png)
 
 ## Building and Running
 
