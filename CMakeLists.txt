@@ -14,6 +14,8 @@ conan_basic_setup()
 add_executable(${PROJECT_NAME}     
     src/main.cpp
     src/GLDebugEnable.cpp
+    src/GUI.cpp
+    src/MeshGeneration.cpp
     src/Shader.cpp
     src/Util.cpp
 )
@@ -47,7 +49,7 @@ target_include_directories(
 #Finally
 target_link_libraries(${PROJECT_NAME} 
     glad 
-    nuklear_sfml
+    imgui_sfml
     Threads::Threads 
     ${CMAKE_DL_LIBS}
     ${CONAN_LIBS}

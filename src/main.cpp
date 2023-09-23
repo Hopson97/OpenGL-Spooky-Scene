@@ -241,7 +241,7 @@ int main()
     GLuint person_specular = load_texture("assets/textures/person_specular.png");
 
     GLuint grass_texture = load_texture("assets/textures/grass_03.png");
-    GLuint grass_crate_specular_texture = load_texture("assets/textures/grass_specular.png");
+    GLuint grass_specular = load_texture("assets/textures/grass_specular.png");
 
     GLuint crate_texture = load_texture("assets/textures/crate.png");
     GLuint crate_specular_texture = load_texture("assets/textures/crate_specular.png");
@@ -496,7 +496,7 @@ int main()
         if (settings.grass)
         {
             glBindTextureUnit(0, grass_texture);
-            glBindTextureUnit(1, grass_crate_specular_texture);
+            glBindTextureUnit(1, grass_specular);
         }
         else
         {
@@ -509,8 +509,8 @@ int main()
         glDrawElements(GL_TRIANGLES, terrain_mesh.indices.size(), GL_UNSIGNED_INT, nullptr);
 
         // Set the box transforms and render
-        glBindTextureUnit(0, crate_texture);
-        glBindTextureUnit(1, crate_specular_texture);
+        glBindTextureUnit(0, grass_texture);
+        glBindTextureUnit(1, grass_specular);
         glBindVertexArray(box_vertex_array.vao);
         for (auto& box_matrix : box_mats)
         {
@@ -612,8 +612,9 @@ int main()
     // --------------------------
     GUI::shutdown();
 
-    // Delete all vertex arrays 
-    auto cleanup_vertex_array = [](VertexArray& vertex_array) {
+    // Delete all vertex arrays
+    auto cleanup_vertex_array = [](VertexArray& vertex_array)
+    {
         glDeleteBuffers(1, &vertex_array.vbo);
         glDeleteBuffers(1, &vertex_array.ebo);
         glDeleteVertexArrays(1, &vertex_array.vao);
@@ -636,11 +637,9 @@ int main()
     glDeleteTextures(1, &crate_specular_texture);
 
     glDeleteTextures(1, &grass_texture);
-    glDeleteTextures(1, &grass_crate_specular_texture);
-    
+    glDeleteTextures(1, &grass_specular);
 
     // Delete all framebuffers...
     glDeleteFramebuffers(1, &fbo);
     glDeleteFramebuffers(1, &fbo_texture);
-
 }

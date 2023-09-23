@@ -129,9 +129,8 @@
 
 // Custom by Hopson
 #define IMGUI_IMPL_OPENGL_LOADER_CUSTOM
-#include <glad/glad.h>
+#include "../glad/glad.h"
 // end
-
 
 #include <imgui.h>
 #ifndef IMGUI_DISABLE

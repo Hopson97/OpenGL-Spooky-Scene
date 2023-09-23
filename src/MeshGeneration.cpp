@@ -134,7 +134,7 @@ bool Model::load_from_file(const fs::path& path)
     auto scene = importer.ReadFile(path_str, aiProcess_Triangulate | aiProcess_FlipUVs |
                                                  aiProcess_GenNormals); //
     //|
-                                       // aiProcess_OptimizeMeshes | aiProcess_OptimizeGraph);
+    // aiProcess_OptimizeMeshes | aiProcess_OptimizeGraph);
 
     if (!scene || !scene->mRootNode || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE)
     {
@@ -160,6 +160,7 @@ bool Model::load_from_file(const fs::path& path)
     std::cout << "Loaded " << path << "\nMeshes: " << meshes.size()
               << "\nVertices: " << vertex_count << "\nIndices: " << indices_count
               << "\nTexutres: " << textures_count << '\n';
+    return true;
 }
 
 void Model::process_node(aiNode* node, const aiScene* scene)
