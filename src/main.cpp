@@ -12,6 +12,7 @@
 #include <nuklear_sfml/nuklear_def.h>
 #include <nuklear_sfml/nuklear_sfml_gl3.h>
 
+
 #include "GLDebugEnable.h"
 #include "MeshGeneration.h"
 #include "Shader.h"
@@ -525,7 +526,6 @@ int main()
     Transform terrain_transform;
     Transform light_transform;
     std::vector<Transform> box_transforms;
-    std::vector<Transform> people_transforms;
     for (int i = 0; i < 25; i++)
     {
         float x = static_cast<float>(rand() % 120) + 3;
@@ -533,15 +533,16 @@ int main()
         float r = static_cast<float>(rand() % 360);
 
         box_transforms.push_back({{x, 0.0f, z}, {0.0f, r, 0}});
+    }
 
-        x = static_cast<float>(rand() % 120) + 3;
-        z = static_cast<float>(rand() % 120) + 3;
+    std::vector<Transform> people_transforms;
+    for (int i = 0; i < 5; i++)
+    {
+        float x = static_cast<float>(rand() % 120) + 3;
+        float z = static_cast<float>(rand() % 120) + 3;
 
         people_transforms.push_back({{x, 0.0f, z}, {0.0f, 0.0, 0}});
     }
-
-    // camera_transform.position = {80.0f, 12.0f, 35.0f};
-    // camera_transform.rotation = {-33.0f, 201.0f, 0.0f};
 
     camera_transform.position = {80.0f, 1.0f, 35.0f};
     camera_transform.rotation = {0.0f, 201.0f, 0.0f};
@@ -651,6 +652,7 @@ int main()
             box_mats.push_back(create_model_matrix(box_transform));
         }
 
+
         // -----------------------
         // ==== Render to FBO ====
         // -----------------------
@@ -739,31 +741,17 @@ int main()
         }
 
         // Draw billboard
-        auto pi = static_cast<float>(std::numbers::pi);
-        auto xd = 20.0f - camera_transform.position.x;
-        auto yd = 20.0f - camera_transform.position.z;
-        auto r = std::atan2(xd, yd) + pi;
-
-        glm::mat4 billboard_mat{1.0f};
-        billboard_mat = glm::translate(billboard_mat, {20, 1, 20});
-        billboard_mat = glm::rotate(billboard_mat, 0.0f, {1, 0, 0});
-        billboard_mat = glm::rotate(billboard_mat, r, {0, 1, 0});
-        billboard_mat = glm::rotate(billboard_mat, pi, {0, 0, 1});
-
-        glBindTextureUnit(0, person_texture);
-        scene_shader.set_uniform("model_matrix", billboard_mat);
-        glBindVertexArray(billboard_vertex_array.vao);
-        glDrawElements(GL_TRIANGLES, billboard_mesh.indices.size(), GL_UNSIGNED_INT, nullptr);
-
         glBindTextureUnit(0, person_texture);
         glBindTextureUnit(1, person_specular);
         glBindVertexArray(billboard_vertex_array.vao);
         for (auto& transform : people_transforms)
         {
+
             // Draw billboard
             auto pi = static_cast<float>(std::numbers::pi);
             auto xd = transform.position.x - camera_transform.position.x;
             auto yd = transform.position.z - camera_transform.position.z;
+
             auto r = std::atan2(xd, yd) + pi;
 
             glm::mat4 billboard_mat{1.0f};
