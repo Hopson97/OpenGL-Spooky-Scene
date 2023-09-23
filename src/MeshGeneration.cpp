@@ -207,8 +207,7 @@ GLuint load_texture(const fs::path& path)
     return texture;
 };
 
-std::vector<Texture> Model::load_material(aiMaterial* material, aiTextureType texture_type,
-                                          std::string name)
+std::vector<Texture> Model::load_material(aiMaterial* material, aiTextureType texture_type)
 {
     std::vector<Texture> textures;
 
@@ -230,11 +229,26 @@ std::vector<Texture> Model::load_material(aiMaterial* material, aiTextureType te
 
         if (should_load)
         {
-
             Texture texture;
+
+            texture.type = [texture_type]()
+            {
+                switch (texture_type)
+                {
+
+                    case aiTextureType_DIFFUSE:
+                        return "diffuse";
+                        break;
+                    case aiTextureType_SPECULAR:
+                        return "specular";
+                        break;
+                    default:
+                        return "Unknown";
+                }
+            }();
+
             texture.path = str.C_Str();
             texture.id = load_texture(directory + "/" + str.C_Str());
-            texture.type = name;
             textures.push_back(texture);
             texture_cache.push_back(texture);
         }
@@ -290,8 +304,8 @@ Mesh Model::process_mesh(aiMesh* ai_mesh, const aiScene* scene)
     if (ai_mesh->mMaterialIndex >= 0)
     {
         auto material = scene->mMaterials[ai_mesh->mMaterialIndex];
-        auto diffuse_maps = load_material(material, aiTextureType_DIFFUSE, "diffuse");
-        auto specular_maps = load_material(material, aiTextureType_SPECULAR, "specular");
+        auto diffuse_maps = load_material(material, aiTextureType_DIFFUSE);
+        auto specular_maps = load_material(material, aiTextureType_SPECULAR);
 
         mesh.textures.insert(mesh.textures.end(), diffuse_maps.begin(), diffuse_maps.end());
         mesh.textures.insert(mesh.textures.end(), specular_maps.begin(), specular_maps.end());

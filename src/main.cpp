@@ -80,8 +80,6 @@ namespace
             point_light.att.linear = 0.045f;
             point_light.att.exponant = 0.0075f;
 
-            spot_light.transform.position = {40.0f, 10.0f, 20.0f};
-            spot_light.transform.rotation = {0.6f, -0.65f, 0.5f};
             spot_light.ambient_intensity = 0.012;
             spot_light.diffuse_intensity = 0.35;
             spot_light.specular_intensity = 1.0f;
@@ -186,32 +184,6 @@ namespace
         {
             r.y = 359.9f;
         }
-    }
-
-    void draw_mesh(const Mesh& mesh, Shader& shader)
-    {
-        unsigned int diffuseNr = 1;
-        unsigned int specularNr = 1;
-        for (int i = 0; i < mesh.textures.size(); i++)
-        {
-            glActiveTexture(GL_TEXTURE0 + i); // activate proper texture unit before binding
-            // retrieve texture number (the N in diffuse_textureN)
-            std::string number;
-            std::string name = mesh.textures[i].type;
-            if (name == "texture_diffuse")
-                number = std::to_string(diffuseNr++);
-            else if (name == "texture_specular")
-                number = std::to_string(specularNr++);
-
-            auto uni = "material." + name + number;
-            shader.set_uniform(uni, i);
-
-            glBindTextureUnit(i, mesh.textures[i].id);
-        }
-        // draw mesh
-        glBindVertexArray(mesh.vertex_array.vao);
-        glDrawElements(GL_TRIANGLES, mesh.indices.size(), GL_UNSIGNED_INT, 0);
-        glBindVertexArray(0);
     }
 } // namespace
 
@@ -328,11 +300,6 @@ namespace GUI
 
             ImGui::PushID("SpotLight");
             ImGui::Text("Spot light");
-            ImGui::SliderFloat3("Position", &settings.spot_light.transform.position[0], 0, 100);
-            if (ImGui::SliderFloat3("Direction", &settings.spot_light.transform.rotation[0],-1.0, 1.0))
-            {
-                settings.spot_light.transform.rotation = glm::normalize(settings.spot_light.transform.rotation);
-            }
             ImGui::SliderFloat("Cutoff", &settings.spot_light.cutoff, 0.0, 90.0f);
             _base_light_widgets(settings.spot_light);
             _attenuation_widgets(settings.spot_light.att);
@@ -685,8 +652,8 @@ int main()
 
         scene_shader.set_uniform("eye_position", camera_transform.position);
 
-        scene_shader.set_uniform("material.diffuse", 0);
-        scene_shader.set_uniform("material.specular", 1);
+        scene_shader.set_uniform("material.diffuse0", 0);
+        scene_shader.set_uniform("material.specular0", 1);
         scene_shader.set_uniform("material.shininess", settings.material_shine);
         // clang-format off
 
@@ -716,9 +683,7 @@ int main()
         upload_attenuation(scene_shader,                    settings.point_light.att, "point_light");
 
         // Set the spot light shader uniforms
-        scene_shader.set_uniform("spot_light.cutoff",       glm::cos(glm::radians(25.5f)));
-        //scene_shader.set_uniform("spot_light.position",     settings.spot_light.transform.position);
-        //scene_shader.set_uniform("spot_light.direction",    settings.spot_light.transform.rotation);
+        scene_shader.set_uniform("spot_light.cutoff",       glm::cos(glm::radians(settings.spot_light.cutoff)));
         scene_shader.set_uniform("spot_light.position",     camera_transform.position);
         scene_shader.set_uniform("spot_light.direction",    front);
         upload_base_light(scene_shader,                     settings.spot_light, "spot_light");
@@ -754,6 +719,31 @@ int main()
             glDrawElements(GL_TRIANGLES, box_mesh.indices.size(), GL_UNSIGNED_INT, nullptr);
         }
 
+        // Draws a mesh by loop the textures to bind, and then rendering
+        auto draw_model = [](const Mesh& mesh, Shader& shader)
+        {
+            GLuint diffuse_id = 0;
+            GLuint specular_id = 0;
+            for (int i = 0; i < mesh.textures.size(); i++)
+            {
+                std::string number;
+                std::string name = mesh.textures[i].type;
+                if (name == "diffuse")
+                    number = std::to_string(diffuse_id++);
+                else if (name == "specular")
+                    number = std::to_string(specular_id++);
+
+                auto uni = "material." + name + number;
+                shader.set_uniform(uni, i);
+
+                glBindTextureUnit(i, mesh.textures[i].id);
+            }
+            // draw mesh
+            glBindVertexArray(mesh.vertex_array.vao);
+            glDrawElements(GL_TRIANGLES, mesh.indices.size(), GL_UNSIGNED_INT, 0);
+            glBindVertexArray(0);
+        };
+
         // Draw a model loaded from assimp
         glm::mat4 mesh_matrix{1.0f};
         mesh_matrix = glm::translate(mesh_matrix, {30.0f, 5.0f, 30.0f});
@@ -762,7 +752,7 @@ int main()
         scene_shader.set_uniform("model_matrix", mesh_matrix);
         for (auto& mesh : backpack.meshes)
         {
-            draw_mesh(mesh, scene_shader);
+            draw_model(mesh, scene_shader);
         }
 
         // Draw billboards

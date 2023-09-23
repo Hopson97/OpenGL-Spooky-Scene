@@ -9,8 +9,8 @@ out vec4 out_colour;
 
 struct Material 
 {
-    sampler2D diffuse;
-    sampler2D specular;
+    sampler2D diffuse0;
+    sampler2D specular0;
     float shininess;
 };
 
@@ -81,7 +81,7 @@ vec3 calculate_base_lighting(LightBase light, vec3 normal, vec3 light_direction,
     // Specular lighting
     vec3 reflect_direction  = reflect(-light_direction, normal);
     float spec              = pow(max(dot(eye_direction, reflect_direction), 0.0), material.shininess);
-    vec3 specular           = light.specular_intensity * spec * vec3(texture(material.specular, pass_texture_coord));
+    vec3 specular           = light.specular_intensity * spec * vec3(texture(material.specular0, pass_texture_coord));
 
     return ambient_light + diffuse + specular;
 }
@@ -127,7 +127,7 @@ vec3 calculate_spot_light(SpotLight light, vec3 normal, vec3 eye_direction)
     float attenuation = calculate_attenuation(light.att, light.position);
 
     // Smooth edges, creates the flashlight effect such that only centre pixels are lit
-    float oco = cos(30.0 * 3.14159 / 180);
+    float oco = cos(acos(light.cutoff) + (6.0 * radians(180.0) / 180.0)); 
     float theta = dot(light_direction, -light.direction);
     float epsilon = light.cutoff - oco;
     float intensity = clamp((theta - oco) / epsilon, 0.0, 1.0);
@@ -141,7 +141,7 @@ vec3 calculate_spot_light(SpotLight light, vec3 normal, vec3 eye_direction)
 
 void main()
 {
-    out_colour = texture(material.diffuse, pass_texture_coord);
+    out_colour = texture(material.diffuse0, pass_texture_coord);
     if (is_light)
     {
         out_colour *= 2.0f;

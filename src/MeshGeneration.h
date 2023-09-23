@@ -48,8 +48,7 @@ struct Model
 
     void process_node(aiNode* node, const aiScene* scene);
     Mesh process_mesh(aiMesh* mesh, const aiScene* scene);
-    std::vector<Texture> load_material(aiMaterial* material, aiTextureType texture_type,
-                                       std::string name);
+    std::vector<Texture> load_material(aiMaterial* material, aiTextureType texture_type);
 
     std::vector<Texture> texture_cache;
 
