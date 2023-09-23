@@ -2,17 +2,13 @@
 
 #include <SFML/Graphics/Image.hpp>
 #include <SFML/Window/Event.hpp>
-#include <SFML/Window/Window.hpp>
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <imgui.h>
-#include <imgui_sfml/imgui-SFML.h>
-#include <imgui_sfml/imgui_impl_opengl3.h>
-#include <nuklear_sfml/nuklear_def.h>
-#include <nuklear_sfml/nuklear_sfml_gl3.h>
 
 #include "GLDebugEnable.h"
+#include "GUI.h"
+#include "Lights.h"
 #include "MeshGeneration.h"
 #include "Shader.h"
 #include "Util.h"
@@ -23,78 +19,6 @@ namespace
     {
         glm::vec3 position{0.0f};
         glm::vec3 rotation{0.0f};
-    };
-
-    // -----------------------------
-    // ==== Lighting structures ====
-    // -----------------------------
-    struct LightBase
-    {
-        glm::vec3 colour = {1, 1, 1};
-        float ambient_intensity = 0.2f;
-        float diffuse_intensity = 0.2f;
-        float specular_intensity = 0.2f;
-    };
-
-    struct Attenuation
-    {
-        float constant = 1.0f;
-        float linear = 0.045f;
-        float exponant = 0.0075f;
-    };
-
-    struct DirectionalLight : public LightBase
-    {
-        glm::vec3 direction = {0, -1, 0};
-    };
-
-    struct PointLight : public LightBase
-    {
-        Attenuation att;
-        glm::vec3 position = {0, 0, 0};
-    };
-
-    struct SpotLight : public LightBase
-    {
-        Attenuation att;
-        Transform transform;
-        float cutoff = 12.5;
-    };
-
-    // --------------------------
-    // ==== Settings via GUI ====
-    // --------------------------
-    struct Settings
-    {
-        Settings()
-        {
-            dir_light.direction = {0.3f, -8.0f, 0.3f};
-            dir_light.ambient_intensity = 0.02f;
-            dir_light.diffuse_intensity = 0.02f;
-            dir_light.specular_intensity = 0.0f;
-
-            point_light.ambient_intensity = 0.3f;
-            point_light.diffuse_intensity = 1.0f;
-            point_light.specular_intensity = 1.0f;
-            point_light.att.constant = 1.0f;
-            point_light.att.linear = 0.045f;
-            point_light.att.exponant = 0.0075f;
-
-            spot_light.ambient_intensity = 0.012;
-            spot_light.diffuse_intensity = 0.35;
-            spot_light.specular_intensity = 1.0f;
-            spot_light.att.constant = 0.2f;
-            spot_light.att.linear = 0.016f;
-            spot_light.att.exponant = 0.003f;
-        }
-        DirectionalLight dir_light;
-        PointLight point_light;
-        SpotLight spot_light;
-
-        bool wireframe = false;
-        float material_shine = 32.0f;
-
-        bool grass = true;
     };
 
     template <int Ticks>
@@ -186,131 +110,6 @@ namespace
         }
     }
 } // namespace
-
-namespace GUI
-{
-    nk_context* ctx = nullptr;
-
-    int window_flags = NK_WINDOW_BORDER | NK_WINDOW_SCALABLE | NK_WINDOW_MOVABLE |
-                       NK_WINDOW_NO_SCROLLBAR | NK_WINDOW_SCALE_LEFT | NK_WINDOW_MINIMIZABLE;
-
-    void init(sf::Window* window)
-    {
-        ctx = nk_sfml_init(window);
-
-        nk_font_atlas* atlas;
-        nk_sfml_font_stash_begin(&atlas);
-        nk_sfml_font_stash_end();
-
-        ImGui::SFML::Init(*window, cast_vector<float>(window->getSize()));
-        ImGui_ImplOpenGL3_Init();
-    }
-
-    void begin_frame()
-    {
-        assert(ctx);
-        nk_input_begin(ctx);
-
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui::NewFrame();
-    }
-
-    void shutdown()
-    {
-        assert(ctx);
-        nk_sfml_shutdown();
-    }
-
-    void render()
-    {
-        assert(ctx);
-        nk_input_end(ctx);
-        nk_sfml_render(NK_ANTI_ALIASING_ON, 0x80000, 0x80000);
-
-        ImGui::Render();
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-    }
-
-    void event(sf::Event& e)
-    {
-        assert(ctx);
-        nk_sfml_handle_event(&e);
-    }
-
-    void _base_light_widgets(LightBase& light)
-    {
-        ImGui::SliderFloat3("Colour", &light.colour[0], 0.0, 1.0);
-        ImGui::SliderFloat("Ambient Intensity", &light.ambient_intensity, 0.0, 1.0);
-        ImGui::SliderFloat("Diffuse Intensity", &light.diffuse_intensity, 0.0, 1.0);
-        ImGui::SliderFloat("Specular Intensity", &light.specular_intensity, 0.0, 1.0);
-    }
-
-    void _attenuation_widgets(Attenuation& attenuation)
-    {
-        ImGui::SliderFloat("Attenuation Constant", &attenuation.constant, 0.0, 1.0f);
-        ImGui::SliderFloat("Attenuation Linear", &attenuation.linear, 0.14f, 0.0014f, "%.6f");
-        ImGui::SliderFloat("Attenuation Quadratic", &attenuation.exponant, 0.000007f, 0.03f,
-                           "%.6f");
-    }
-
-    void debug_window(const Transform& transform, Settings& settings)
-    {
-        assert(ctx);
-        auto r = transform.rotation;
-        auto p = transform.position;
-        if (nk_begin(ctx, "Debug Window", nk_rect(10, 10, 300, 130), window_flags))
-        {
-            nk_layout_row_dynamic(ctx, 12, 1);
-            nk_labelf(ctx, NK_STATIC, "Position: (%f, %f, %f)", p.x, p.y, p.z);
-            nk_labelf(ctx, NK_STATIC, "Rotation: (%f, %f, %f)", r.x, r.y, r.z);
-        }
-        nk_end(ctx);
-
-        // clang-format off
-        if (ImGui::Begin("Debug Window"))
-        {
-            ImGui::Text("Position: (%f, %f, %f)", p.x, p.y, p.z);
-            ImGui::Text("Rotation: (%f, %f, %f)", r.x, r.y, r.z);
-
-            ImGui::SliderFloat("Material Shine", &settings.material_shine, 1.0f, 64.0f);
-
-            ImGui::Separator();
-            ImGui::Checkbox("Grass ground?", &settings.grass);
-
-            ImGui::Separator();
-
-            ImGui::PushID("DirLight");
-            ImGui::Text("Directional light");
-            if (ImGui::SliderFloat3("Direction", &settings.dir_light.direction[0], -1.0, 1.0))
-            {
-                settings.dir_light.direction = glm::normalize(settings.dir_light.direction);
-            }
-            _base_light_widgets(settings.dir_light);
-            ImGui::PopID();
-
-            ImGui::Separator();
-
-            ImGui::PushID("PointLight");
-            ImGui::Text("Point light");
-            _base_light_widgets(settings.point_light);
-            _attenuation_widgets(settings.point_light.att);
-            ImGui::PopID();
-
-            ImGui::Separator();
-
-            ImGui::PushID("SpotLight");
-            ImGui::Text("Spot light");
-            ImGui::SliderFloat("Cutoff", &settings.spot_light.cutoff, 0.0, 90.0f);
-            _base_light_widgets(settings.spot_light);
-            _attenuation_widgets(settings.spot_light.att);
-            ImGui::PopID();
-        }
-        // clang-format on
-
-        ImGui::End();
-    }
-
-} // namespace GUI
 
 int main()
 {
@@ -550,8 +349,7 @@ int main()
         sf::Event e;
         while (window.pollEvent(e))
         {
-            ImGui::SFML::ProcessEvent(window, e);
-            GUI::event(e);
+            GUI::event(window, e);
             if (e.type == sf::Event::Closed)
                 window.close();
             else if (e.type == sf::Event::KeyReleased)
@@ -594,6 +392,8 @@ int main()
                     glm::sin(game_time_now.asSeconds() * 0.55f) * dt.asSeconds() * 3.0f;
                 light_transform.position.z +=
                     glm::cos(game_time_now.asSeconds() * 0.55f) * dt.asSeconds() * 3.0f;
+
+                settings.spot_light.cutoff -= 0.01;
             });
 
         // -------------------------------
@@ -626,7 +426,6 @@ int main()
 
         auto terrain_mat = create_model_matrix(terrain_transform);
         auto light_mat = create_model_matrix(light_transform);
-        auto spot_light_mat = create_model_matrix(settings.spot_light.transform);
 
         std::vector<glm::mat4> box_mats;
         for (auto& box_transform : box_transforms)
@@ -784,9 +583,6 @@ int main()
         glBindVertexArray(light_vertex_array.vao);
         glDrawElements(GL_TRIANGLES, light_mesh.indices.size(), GL_UNSIGNED_INT, nullptr);
 
-        scene_shader.set_uniform("model_matrix", spot_light_mat);
-        glDrawElements(GL_TRIANGLES, light_mesh.indices.size(), GL_UNSIGNED_INT, nullptr);
-
         // --------------------------
         // ==== Render to window ====
         // --------------------------
@@ -805,20 +601,46 @@ int main()
         // ==== End Frame ====
         // --------------------------
         // ImGui::ShowDemoWindow();
-        GUI::debug_window(camera_transform, settings);
+        GUI::debug_window(camera_transform.position, camera_transform.rotation, settings);
 
         GUI::render();
         window.display();
     }
 
+    // --------------------------
+    // ==== Graceful Cleanup ====
+    // --------------------------
     GUI::shutdown();
 
-    // Cleanup OpenGL
-    glDeleteBuffers(1, &terrain_vertex_array.vbo);
-    glDeleteBuffers(1, &terrain_vertex_array.ebo);
-    glDeleteVertexArrays(1, &terrain_vertex_array.vao);
+    // Delete all vertex arrays 
+    auto cleanup_vertex_array = [](VertexArray& vertex_array) {
+        glDeleteBuffers(1, &vertex_array.vbo);
+        glDeleteBuffers(1, &vertex_array.ebo);
+        glDeleteVertexArrays(1, &vertex_array.vao);
+    };
+    cleanup_vertex_array(billboard_vertex_array);
+    cleanup_vertex_array(terrain_vertex_array);
+    cleanup_vertex_array(light_vertex_array);
+    cleanup_vertex_array(box_vertex_array);
 
+    for (auto& mesh : backpack.meshes)
+    {
+        cleanup_vertex_array(mesh.vertex_array);
+    }
+
+    // Delete all textures
     glDeleteTextures(1, &person_texture);
+    glDeleteTextures(1, &person_specular);
 
+    glDeleteTextures(1, &crate_texture);
+    glDeleteTextures(1, &crate_specular_texture);
+
+    glDeleteTextures(1, &grass_texture);
+    glDeleteTextures(1, &grass_crate_specular_texture);
+    
+
+    // Delete all framebuffers...
     glDeleteFramebuffers(1, &fbo);
+    glDeleteFramebuffers(1, &fbo_texture);
+
 }
