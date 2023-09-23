@@ -48,7 +48,7 @@ Under "Project -> Properties -> C/C++ -> Preprocessor -> Preprocessor Definition
 Requires conan.
 
 ```sh
-python3 -m pip install conan
+python3 -m pip install conan==1.61.0
 ```
 
 To build, at the root of the project:
