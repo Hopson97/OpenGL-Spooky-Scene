@@ -12,7 +12,6 @@
 #include <nuklear_sfml/nuklear_def.h>
 #include <nuklear_sfml/nuklear_sfml_gl3.h>
 
-
 #include "GLDebugEnable.h"
 #include "MeshGeneration.h"
 #include "Shader.h"
@@ -23,15 +22,7 @@ namespace
     struct Transform
     {
         glm::vec3 position{0.0f};
-
         glm::vec3 rotation{0.0f};
-    };
-
-    struct VertexArray
-    {
-        GLuint vao = 0;
-        GLuint vbo = 0;
-        GLuint ebo = 0;
     };
 
     // -----------------------------
@@ -106,16 +97,6 @@ namespace
         float material_shine = 32.0f;
 
         bool grass = true;
-
-        /*
-        glm::vec3 light_ambient{0.8f, 0.8f, 0.8f};
-        glm::vec3 light_diffuse{0.6f, 0.6f, 0.6f};
-        glm::vec3 light_specular{1.0f, 1.0f, 1.0f};
-        float light_att_linear = 0.045;
-        float light_att_quadratic = 0.0075;
-
-        float spotlight_cutoff = 12.5f;
-        */
     };
 
     template <int Ticks>
@@ -205,6 +186,32 @@ namespace
         {
             r.y = 359.9f;
         }
+    }
+
+    void draw_mesh(const Mesh& mesh, Shader& shader)
+    {
+        unsigned int diffuseNr = 1;
+        unsigned int specularNr = 1;
+        for (int i = 0; i < mesh.textures.size(); i++)
+        {
+            glActiveTexture(GL_TEXTURE0 + i); // activate proper texture unit before binding
+            // retrieve texture number (the N in diffuse_textureN)
+            std::string number;
+            std::string name = mesh.textures[i].type;
+            if (name == "texture_diffuse")
+                number = std::to_string(diffuseNr++);
+            else if (name == "texture_specular")
+                number = std::to_string(specularNr++);
+
+            auto uni = "material." + name + number;
+            shader.set_uniform(uni, i);
+
+            glBindTextureUnit(i, mesh.textures[i].id);
+        }
+        // draw mesh
+        glBindVertexArray(mesh.vertex_array.vao);
+        glDrawElements(GL_TRIANGLES, mesh.indices.size(), GL_UNSIGNED_INT, 0);
+        glBindVertexArray(0);
     }
 } // namespace
 
@@ -371,12 +378,14 @@ int main()
     Mesh light_mesh = generate_cube_mesh({0.2f, 0.2f, 0.2f});
     Mesh box_mesh = generate_cube_mesh({2.0f, 2.0f, 2.0f});
 
+    Model backpack;
+    backpack.load_from_file("assets/models/backpack/backpack.obj");
+
     // ----------------------------------------
     // ==== Create the OpenGL vertex array ====
     // ----------------------------------------
     auto buffer_mesh = [](Mesh& mesh)
     {
-        std::cout << "Creating vertex arrays\n";
         VertexArray vertex_array;
 
         // Create the OpenGL buffer objects
@@ -423,6 +432,11 @@ int main()
     auto light_vertex_array = buffer_mesh(light_mesh);
     auto box_vertex_array = buffer_mesh(box_mesh);
 
+    for (auto& mesh : backpack.meshes)
+    {
+        mesh.vertex_array = buffer_mesh(mesh);
+    }
+
     // ------------------------------------
     // ==== Create the OpenGL Textures ====
     // ------------------------------------
@@ -459,8 +473,10 @@ int main()
 
     GLuint person_texture = load_texture("assets/textures/person.png");
     GLuint person_specular = load_texture("assets/textures/person_specular.png");
+
     GLuint grass_texture = load_texture("assets/textures/grass_03.png");
     GLuint grass_crate_specular_texture = load_texture("assets/textures/grass_specular.png");
+
     GLuint crate_texture = load_texture("assets/textures/crate.png");
     GLuint crate_specular_texture = load_texture("assets/textures/crate_specular.png");
 
@@ -536,7 +552,7 @@ int main()
     }
 
     std::vector<Transform> people_transforms;
-    for (int i = 0; i < 5; i++)
+    for (int i = 0; i < 50; i++)
     {
         float x = static_cast<float>(rand() % 120) + 3;
         float z = static_cast<float>(rand() % 120) + 3;
@@ -616,7 +632,6 @@ int main()
         // -------------------------------
         // ==== Transform Calculations ====
         // -------------------------------
-
         // View/ Camera matrix
         glm::mat4 view_matrix{1.0f};
         auto x_rot = glm::radians(camera_transform.rotation.x);
@@ -651,7 +666,6 @@ int main()
         {
             box_mats.push_back(create_model_matrix(box_transform));
         }
-
 
         // -----------------------
         // ==== Render to FBO ====
@@ -740,7 +754,18 @@ int main()
             glDrawElements(GL_TRIANGLES, box_mesh.indices.size(), GL_UNSIGNED_INT, nullptr);
         }
 
-        // Draw billboard
+        // Draw a model loaded from assimp
+        glm::mat4 mesh_matrix{1.0f};
+        mesh_matrix = glm::translate(mesh_matrix, {30.0f, 5.0f, 30.0f});
+        // mesh_matrix = glm::scale(mesh_matrix, {0.02f, 0.02f, 0.02f});
+        // mesh_matrix = glm::scale(mesh_matrix, {10.0f, 10.0f, 10.0f});
+        scene_shader.set_uniform("model_matrix", mesh_matrix);
+        for (auto& mesh : backpack.meshes)
+        {
+            draw_mesh(mesh, scene_shader);
+        }
+
+        // Draw billboards
         glBindTextureUnit(0, person_texture);
         glBindTextureUnit(1, person_specular);
         glBindVertexArray(billboard_vertex_array.vao);
@@ -757,7 +782,6 @@ int main()
             glm::mat4 billboard_mat{1.0f};
             billboard_mat = glm::translate(billboard_mat, transform.position);
             billboard_mat = glm::rotate(billboard_mat, r, {0, 1, 0});
-            // billboard_mat = glm::rotate(billboard_mat, pi, {0, 0, 1});
 
             scene_shader.set_uniform("model_matrix", billboard_mat);
             glDrawElements(GL_TRIANGLES, billboard_mesh.indices.size(), GL_UNSIGNED_INT,

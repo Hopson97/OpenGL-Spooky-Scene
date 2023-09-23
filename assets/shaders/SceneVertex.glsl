@@ -1,4 +1,4 @@
-#version 330 core
+#version 450 core
 
 
 layout(location = 0) in vec3 in_position;
@@ -14,6 +14,7 @@ out vec3 pass_fragment_coord;
 uniform mat4 projection_matrix;
 uniform mat4 view_matrix;
 uniform mat4 model_matrix;
+
 
 void main() {
     vec4 world_position = model_matrix * vec4(in_position, 1.0);

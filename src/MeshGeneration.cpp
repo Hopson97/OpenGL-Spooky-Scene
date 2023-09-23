@@ -1,5 +1,9 @@
 #include "MeshGeneration.h"
 
+#include <numeric>
+
+#include <SFML/Graphics/Image.hpp>
+
 Mesh generate_quad_mesh(float w, float h)
 {
     Mesh mesh;
@@ -84,7 +88,6 @@ Mesh generate_terrain_mesh(int size, int edgeVertices)
             GLfloat fz = static_cast<GLfloat>(z);
             GLfloat fx = static_cast<GLfloat>(x);
 
-
             Vertex vertex;
             vertex.position.x = fx / fEdgeVertexCount * size;
             vertex.position.y = 0.0f;
@@ -117,6 +120,181 @@ Mesh generate_terrain_mesh(int size, int edgeVertices)
             mesh.indices.push_back(bottomLeft);
             mesh.indices.push_back(bottomRight);
         }
+    }
+
+    return mesh;
+}
+
+bool Model::load_from_file(const fs::path& path)
+{
+    auto path_str = path.string();
+    // Load the model, other options include aiProcess_GenNormals, aiProcess_SplitLargeMeshes,
+    // aiProcess_OptimizeMeshes
+    Assimp::Importer importer;
+    auto scene = importer.ReadFile(path_str, aiProcess_Triangulate | aiProcess_FlipUVs |
+                                                 aiProcess_GenNormals); //
+    //|
+                                       // aiProcess_OptimizeMeshes | aiProcess_OptimizeGraph);
+
+    if (!scene || !scene->mRootNode || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE)
+    {
+        std::cerr << "Could not load model " << path << "\n"
+                  << importer.GetErrorString() << '\n';
+        return false;
+    }
+
+    directory = path_str.substr(0, path_str.find_last_of('/'));
+    process_node(scene->mRootNode, scene);
+
+    int vertex_count = 0;
+    int indices_count = 0;
+    int textures_count = 0;
+
+    for (auto& mesh : meshes)
+    {
+        vertex_count += mesh.vertices.size();
+        indices_count += mesh.indices.size();
+        textures_count += mesh.textures.size();
+    }
+
+    std::cout << "Loaded " << path << "\nMeshes: " << meshes.size()
+              << "\nVertices: " << vertex_count << "\nIndices: " << indices_count
+              << "\nTexutres: " << textures_count << '\n';
+}
+
+void Model::process_node(aiNode* node, const aiScene* scene)
+{
+    for (unsigned i = 0; i < node->mNumMeshes; i++)
+    {
+        auto mesh = scene->mMeshes[node->mMeshes[i]];
+        meshes.push_back(process_mesh(mesh, scene));
+    }
+
+    for (unsigned i = 0; i < node->mNumChildren; i++)
+    {
+        process_node(node->mChildren[i], scene);
+    }
+}
+
+GLuint load_texture(const fs::path& path)
+{
+    std::cout << "Loading texture " << path << '\n';
+    GLuint texture;
+    glCreateTextures(GL_TEXTURE_2D, 1, &texture);
+
+    // Load the texture from file
+    sf::Image image;
+    image.loadFromFile(path.string());
+    image.flipVertically();
+    auto w = image.getSize().x;
+    auto h = image.getSize().y;
+    auto data = image.getPixelsPtr();
+
+    // Set the storage
+    glTextureStorage2D(texture, 8, GL_RGBA8, w, h);
+    // glGenerateMipmap(GL_TEXTURE_2D);
+
+    // Upload the texture to the GPU to cover the whole created texture
+    glTextureSubImage2D(texture, 0, 0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    glGenerateTextureMipmap(texture);
+
+    // Set texture wrapping and min/mag filters
+    glTextureParameteri(texture, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTextureParameteri(texture, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTextureParameteri(texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    return texture;
+};
+
+std::vector<Texture> Model::load_material(aiMaterial* material, aiTextureType texture_type,
+                                          std::string name)
+{
+    std::vector<Texture> textures;
+
+    for (unsigned i = 0; i < material->GetTextureCount(texture_type); i++)
+    {
+        aiString str;
+        material->GetTexture(texture_type, i, &str);
+
+        bool should_load = true;
+        for (auto& cached : texture_cache)
+        {
+            if (cached.path == std::string(str.C_Str()))
+            {
+                textures.push_back(cached);
+                should_load = false;
+                break;
+            }
+        }
+
+        if (should_load)
+        {
+
+            Texture texture;
+            texture.path = str.C_Str();
+            texture.id = load_texture(directory + "/" + str.C_Str());
+            texture.type = name;
+            textures.push_back(texture);
+            texture_cache.push_back(texture);
+        }
+    }
+
+    return textures;
+}
+
+Mesh Model::process_mesh(aiMesh* ai_mesh, const aiScene* scene)
+{
+    Mesh mesh;
+
+    // Process the Assimp's mesh vertices
+    for (unsigned i = 0; i < ai_mesh->mNumVertices; i++)
+    {
+        Vertex v;
+        v.colour = {1.0f, 1.0f, 1.0f};
+
+        v.position.x = ai_mesh->mVertices[i].x;
+        v.position.y = ai_mesh->mVertices[i].y;
+        v.position.z = ai_mesh->mVertices[i].z;
+
+        if (ai_mesh->HasNormals())
+        {
+
+            v.normal.x = ai_mesh->mNormals[i].x;
+            v.normal.y = ai_mesh->mNormals[i].y;
+            v.normal.z = ai_mesh->mNormals[i].z;
+        }
+        if (ai_mesh->mTextureCoords[0])
+        {
+            v.texture_coord.x = ai_mesh->mTextureCoords[0][i].x;
+            v.texture_coord.y = ai_mesh->mTextureCoords[0][i].y;
+        }
+        else
+        {
+            v.texture_coord = {0.0, 0.0};
+        }
+
+        mesh.vertices.push_back(v);
+    }
+
+    // Process Indices
+    for (unsigned i = 0; i < ai_mesh->mNumFaces; i++)
+    {
+        auto face = ai_mesh->mFaces[i];
+        for (unsigned j = 0; j < face.mNumIndices; j++)
+        {
+            mesh.indices.push_back(face.mIndices[j]);
+        }
+    }
+
+    if (ai_mesh->mMaterialIndex >= 0)
+    {
+        auto material = scene->mMaterials[ai_mesh->mMaterialIndex];
+        auto diffuse_maps = load_material(material, aiTextureType_DIFFUSE, "diffuse");
+        auto specular_maps = load_material(material, aiTextureType_SPECULAR, "specular");
+
+        mesh.textures.insert(mesh.textures.end(), diffuse_maps.begin(), diffuse_maps.end());
+        mesh.textures.insert(mesh.textures.end(), specular_maps.begin(), specular_maps.end());
     }
 
     return mesh;
