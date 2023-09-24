@@ -1,3 +1,4 @@
+#include <array>
 #include <numbers>
 
 #include <SFML/Graphics/Image.hpp>
@@ -12,6 +13,12 @@
 #include "MeshGeneration.h"
 #include "Shader.h"
 #include "Util.h"
+
+#include <imgui.h>
+
+#include <SFML/Audio/Music.hpp>
+#include <SFML/Audio/Sound.hpp>
+#include <SFML/Audio/SoundBuffer.hpp>
 
 namespace
 {
@@ -334,11 +341,44 @@ int main()
         glm::perspective(glm::radians(75.0f), 1600.0f / 900.0f, 1.0f, 256.0f);
     glm::vec3 up = {0, 1, 0};
 
-    Settings settings;
+    // ----------------------------
+    // ==== Load sound effects ====
+    // ----------------------------
+    // Load walking sounds
+    sf::SoundBuffer walk0;
+    walk0.loadFromFile("assets/sounds/sfx_step_grass_l.ogg");
+
+    sf::SoundBuffer walk1;
+    walk1.loadFromFile("assets/sounds/sfx_step_grass_r.ogg");
+
+    std::size_t sound_idx = 0;
+    std::array<sf::Sound, 2> walk_sounds;
+    walk_sounds[0].setBuffer(walk0);
+    walk_sounds[1].setBuffer(walk1);
+
+    auto create_looping_bg =
+        [](sf::Music& background_sfx, const std::string path, int volume, int offset)
+    {
+        background_sfx.openFromFile(path);
+        background_sfx.setLoop(true);
+        background_sfx.setVolume(volume);
+        background_sfx.setPlayingOffset(sf::seconds(offset));
+        background_sfx.play();
+    };
+
+    // Load ambient night sounds
+    sf::Music ambient_night1;
+    sf::Music ambient_night2;
+    sf::Music spookysphere;
+    create_looping_bg(ambient_night1, "assets/sounds/crickets.ogg", 50, 0);
+    create_looping_bg(ambient_night2, "assets/sounds/crickets.ogg", 50, 5);
+    create_looping_bg(spookysphere, "assets/sounds/Atmosphere_003(Loop).wav", 10, 0);
 
     // -------------------
     // ==== Main Loop ====
     // -------------------
+    Settings settings;
+
     TimeStep<60> time_step;
     sf::Clock game_time;
     sf::Clock delta_clock;
@@ -370,6 +410,25 @@ int main()
         auto SPEED = 5.0f;
         auto translate = get_keyboard_input(camera_transform, true) * SPEED;
 
+        // ------------------------
+        // ==== Sound handling ====
+        // ------------------------
+        // Walking sound effects
+        if ((std::abs(translate.x + translate.y + translate.z) > 0) &&
+            camera_transform.position.y > 0.5 && camera_transform.position.y < 1.5)
+        {
+            if (walk_sounds[sound_idx].getStatus() != sf::Sound::Status::Playing)
+            {
+                sound_idx++;
+                if (sound_idx >= walk_sounds.size())
+                {
+                    sound_idx = 0;
+                }
+
+                walk_sounds[sound_idx].play();
+            }
+        }
+
         if (!mouse_locked)
         {
             window.setMouseCursorVisible(false);
@@ -393,7 +452,7 @@ int main()
                 light_transform.position.z +=
                     glm::cos(game_time_now.asSeconds() * 0.55f) * dt.asSeconds() * 3.0f;
 
-             //   settings.spot_light.cutoff -= 0.01;
+                //   settings.spot_light.cutoff -= 0.01;
             });
 
         // -------------------------------
