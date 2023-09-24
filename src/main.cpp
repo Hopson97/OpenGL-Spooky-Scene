@@ -410,6 +410,16 @@ int main()
         auto SPEED = 5.0f;
         auto translate = get_keyboard_input(camera_transform, true) * SPEED;
 
+        if (!mouse_locked)
+        {
+            window.setMouseCursorVisible(false);
+            get_mouse_move_input(camera_transform, window);
+        }
+        else
+        {
+            window.setMouseCursorVisible(true);
+        }
+
         // ------------------------
         // ==== Sound handling ====
         // ------------------------
@@ -427,16 +437,6 @@ int main()
 
                 walk_sounds[sound_idx].play();
             }
-        }
-
-        if (!mouse_locked)
-        {
-            window.setMouseCursorVisible(false);
-            get_mouse_move_input(camera_transform, window);
-        }
-        else
-        {
-            window.setMouseCursorVisible(true);
         }
 
         // ----------------------------------
