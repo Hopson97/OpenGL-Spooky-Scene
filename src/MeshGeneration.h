@@ -13,7 +13,6 @@
 struct Vertex
 {
     glm::vec3 position{0.0f};
-    glm::vec3 colour{0.0f};
     glm::vec2 texture_coord{0.0f};
     glm::vec3 normal{0.0f};
 };
@@ -58,4 +57,4 @@ struct Model
 
 [[nodiscard]] Mesh generate_quad_mesh(float w, float h);
 [[nodiscard]] Mesh generate_cube_mesh(const glm::vec3& size);
-[[nodiscard]] Mesh generate_terrain_mesh(int size, int edgeVertices);
+[[nodiscard]] Mesh generate_terrain_mesh(int size);

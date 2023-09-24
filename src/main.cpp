@@ -147,7 +147,7 @@ int main()
     // ==== Create the Meshes ====
     // ---------------------------
     Mesh billboard_mesh = generate_quad_mesh(1.0f, 2.0f);
-    Mesh terrain_mesh = generate_terrain_mesh(128, 128);
+    Mesh terrain_mesh = generate_terrain_mesh(128);
     Mesh light_mesh = generate_cube_mesh({0.2f, 0.2f, 0.2f});
     Mesh box_mesh = generate_cube_mesh({2.0f, 2.0f, 2.0f});
 
@@ -184,18 +184,15 @@ int main()
         glEnableVertexArrayAttrib(vao, 0);
         glEnableVertexArrayAttrib(vao, 1);
         glEnableVertexArrayAttrib(vao, 2);
-        glEnableVertexArrayAttrib(vao, 3);
 
         // glVertexAttribPointer
         glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, offsetof(Vertex, position));
-        glVertexArrayAttribFormat(vao, 1, 3, GL_FLOAT, GL_FALSE, offsetof(Vertex, colour));
-        glVertexArrayAttribFormat(vao, 2, 2, GL_FLOAT, GL_FALSE,
+        glVertexArrayAttribFormat(vao, 1, 2, GL_FLOAT, GL_FALSE,
                                   offsetof(Vertex, texture_coord));
-        glVertexArrayAttribFormat(vao, 3, 3, GL_FLOAT, GL_FALSE, offsetof(Vertex, normal));
+        glVertexArrayAttribFormat(vao, 2, 3, GL_FLOAT, GL_FALSE, offsetof(Vertex, normal));
         glVertexArrayAttribBinding(vao, 0, 0);
         glVertexArrayAttribBinding(vao, 1, 0);
         glVertexArrayAttribBinding(vao, 2, 0);
-        glVertexArrayAttribBinding(vao, 3, 0);
 
         return vertex_array;
     };

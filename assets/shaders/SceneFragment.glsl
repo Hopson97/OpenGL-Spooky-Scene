@@ -1,6 +1,5 @@
 #version 450 core
 
-in vec3 pass_colour;
 in vec2 pass_texture_coord;
 in vec3 pass_normal;
 in vec3 pass_fragment_coord;

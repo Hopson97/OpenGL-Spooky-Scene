@@ -2,15 +2,25 @@
 
 #include <numeric>
 
+
 #include <SFML/Graphics/Image.hpp>
+
+/*
+Cool blue RGB:
+
+{0.2f, 0.2f, 0.5f},
+{0.2f, 0.5f, 0.5f},
+{0.2f, 0.5f, 1.0f},
+{0.2f, 0.5f, 0.5f},
+*/
 
 Mesh generate_quad_mesh(float w, float h)
 {
     Mesh mesh;
-    mesh.vertices = {{{w, h, 0.0f}, {0.2f, 0.2f, 0.5f}, {0.0f, 1.0f}, {0, 0, 1}},
-                     {{0, h, 0.0f}, {0.2f, 0.5f, 0.5f}, {1.0f, 1.0f}, {0, 0, 1}},
-                     {{0, 0, 0.0f}, {0.2f, 0.5f, 1.0f}, {1.0f, 0.0f}, {0, 0, 1}},
-                     {{w, 0, 0.0f}, {0.2f, 0.5f, 0.5f}, {0.0f, 0.0f}, {0, 0, 1}}
+    mesh.vertices = {{{w, h, 0.0f},  {0.0f, 1.0f}, {0, 0, 1}},
+                     {{0, h, 0.0f},  {1.0f, 1.0f}, {0, 0, 1}},
+                     {{0, 0, 0.0f},  {1.0f, 0.0f}, {0, 0, 1}},
+                     {{w, 0, 0.0f},  {0.0f, 0.0f}, {0, 0, 1}}
 
     };
 
@@ -29,35 +39,35 @@ Mesh generate_cube_mesh(const glm::vec3& dimensions)
 
     // clang-format off
     mesh.vertices = {
-        {{w, h, d}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}},  
-        {{0, h, d}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}},
-        {{0, 0, d}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},  
-        {{w, 0, d}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},
+        {{w, h, d}, {1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}},  
+        {{0, h, d}, {0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}},
+        {{0, 0, d}, {0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},  
+        {{w, 0, d}, {1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},
 
-        {{0, h, d}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}, {-1.0f, 0.0f, 0.0f}}, 
-        {{0, h, 0}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}, {-1.0f, 0.0f, 0.0f}},
-        {{0, 0, 0}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}, {-1.0f, 0.0f, 0.0f}}, 
-        {{0, 0, d}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}, {-1.0f, 0.0f, 0.0f}},
+        {{0, h, d}, {1.0f, 0.0f}, {-1.0f, 0.0f, 0.0f}}, 
+        {{0, h, 0}, {0.0f, 0.0f}, {-1.0f, 0.0f, 0.0f}},
+        {{0, 0, 0}, {0.0f, 1.0f}, {-1.0f, 0.0f, 0.0f}}, 
+        {{0, 0, d}, {1.0f, 1.0f}, {-1.0f, 0.0f, 0.0f}},
 
-        {{0, h, 0}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, -1.0f}}, 
-        {{w, h, 0}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}},
-        {{w, 0, 0}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, -1.0f}}, 
-        {{0, 0, 0}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, -1.0f}},
+        {{0, h, 0}, {1.0f, 0.0f}, {0.0f, 0.0f, -1.0f}}, 
+        {{w, h, 0}, {0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}},
+        {{w, 0, 0}, {0.0f, 1.0f}, {0.0f, 0.0f, -1.0f}}, 
+        {{0, 0, 0}, {1.0f, 1.0f}, {0.0f, 0.0f, -1.0f}},
 
-        {{w, h, 0}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}},  
-        {{w, h, d}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}},
-        {{w, 0, d}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}, {1.0f, 0.0f, 0.0f}},  
-        {{w, 0, 0}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}, {1.0f, 0.0f, 0.0f}},
+        {{w, h, 0}, {1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}},  
+        {{w, h, d}, {0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}},
+        {{w, 0, d}, {0.0f, 1.0f}, {1.0f, 0.0f, 0.0f}},  
+        {{w, 0, 0}, {1.0f, 1.0f}, {1.0f, 0.0f, 0.0f}},
 
-        {{w, h, 0}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, 1.0f, 0.0f}},  
-        {{0, h, 0}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}},
-        {{0, h, d}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},  
-        {{w, h, d}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
+        {{w, h, 0}, {1.0f, 0.0f}, {0.0f, 1.0f, 0.0f}},  
+        {{0, h, 0}, {0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}},
+        {{0, h, d}, {0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},  
+        {{w, h, d}, {1.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
 
-        {{0, 0, 0}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, -1.0f, 0.0f}}, 
-        {{w, 0, 0}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}, {0.0f, -1.0f, 0.0f}},
-        {{w, 0, d}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}, {0.0f, -1.0f, 0.0f}}, 
-        {{0, 0, d}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}, {0.0f, -1.0f, 0.0f}},
+        {{0, 0, 0}, {1.0f, 0.0f}, {0.0f, -1.0f, 0.0f}}, 
+        {{w, 0, 0}, {0.0f, 0.0f}, {0.0f, -1.0f, 0.0f}},
+        {{w, 0, d}, {0.0f, 1.0f}, {0.0f, -1.0f, 0.0f}}, 
+        {{0, 0, d}, {1.0f, 1.0f}, {0.0f, -1.0f, 0.0f}},
     };
     // clang-format on
 
@@ -76,27 +86,25 @@ Mesh generate_cube_mesh(const glm::vec3& dimensions)
     return mesh;
 }
 
-Mesh generate_terrain_mesh(int size, int edgeVertices)
+Mesh generate_terrain_mesh(int size)
 {
-    float fEdgeVertexCount = static_cast<float>(edgeVertices);
+    float sizef = static_cast<float>(size);
 
     Mesh mesh;
-    for (int z = 0; z < edgeVertices; z++)
+    for (int z = 0; z < size; z++)
     {
-        for (int x = 0; x < edgeVertices; x++)
+        for (int x = 0; x < size; x++)
         {
             GLfloat fz = static_cast<GLfloat>(z);
             GLfloat fx = static_cast<GLfloat>(x);
 
             Vertex vertex;
-            vertex.position.x = fx / fEdgeVertexCount * size;
+            vertex.position.x = fx;
             vertex.position.y = 0.0f;
-            vertex.position.z = fz / fEdgeVertexCount * size;
+            vertex.position.z = fz;
 
-            vertex.texture_coord.s = (fx / fEdgeVertexCount) * edgeVertices / 4.0f;
-            vertex.texture_coord.t = (fz / fEdgeVertexCount) * edgeVertices / 4.0f;
-
-            vertex.colour = {1.0f, 1.0f, 1.0f};
+            vertex.texture_coord.s = fx;
+            vertex.texture_coord.t = fz;
 
             vertex.normal = {0, 1, 0};
 
@@ -104,13 +112,13 @@ Mesh generate_terrain_mesh(int size, int edgeVertices)
         }
     }
 
-    for (int z = 0; z < edgeVertices - 1; z++)
+    for (int z = 0; z < size - 1; z++)
     {
-        for (int x = 0; x < edgeVertices - 1; x++)
+        for (int x = 0; x < size - 1; x++)
         {
-            int topLeft = (z * edgeVertices) + x;
+            int topLeft = (z * size) + x;
             int topRight = topLeft + 1;
-            int bottomLeft = ((z + 1) * edgeVertices) + x;
+            int bottomLeft = ((z + 1) * size) + x;
             int bottomRight = bottomLeft + 1;
 
             mesh.indices.push_back(topLeft);
@@ -266,7 +274,6 @@ Mesh Model::process_mesh(aiMesh* ai_mesh, const aiScene* scene)
     for (unsigned i = 0; i < ai_mesh->mNumVertices; i++)
     {
         Vertex v;
-        v.colour = {1.0f, 1.0f, 1.0f};
 
         v.position.x = ai_mesh->mVertices[i].x;
         v.position.y = ai_mesh->mVertices[i].y;
