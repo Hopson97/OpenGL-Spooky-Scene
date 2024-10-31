@@ -1,13 +1,9 @@
 # Linux
-/bin
-dsa_practice
 build/
 
 # Windows
 *.dll
 *.exe
-*.sln
-*.vcxproj
 *.filters
 *.user
 *.vs
@@ -21,4 +17,8 @@ Release/
 *.srctrlprj
 *.srctrldb
 *.srctrlbm
-assets/models/
+
+# Vcpkg
+vcpkg_installed/
+
+spooky-game/

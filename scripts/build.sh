@@ -19,34 +19,29 @@ target_debug() {
 # Create folder for distribution
 if [ "$1" = "release" ]
 then
-    if [ -d "$dsa_practice " ]
+    if [ -d "$spooky-game" ]
     then
-        rm -rf -d dsa_practice 
+        rm -rf -d spooky-game
     fi
 
-    mkdir -p dsa_practice 
+    mkdir -p spooky-game
 fi
 
 # Creates the folder for the buildaries
-mkdir -p dsa_practice
-mkdir -p dsa_practice/assets
+mkdir -p spooky-game 
+mkdir -p spooky-game/assets
 mkdir -p build
 mkdir -p build/release
 mkdir -p build/debug
 cd build
 
-if [ "$1" = "install" ]
-then
-    conan install .. -s compiler.libcxx=libstdc++11 --build=missing
-fi
-
 # Builds target
 if [ "$1" = "release" ]
 then
     target_release
-    cp build/release/bin/dsa_practice  dsa_practice/dsa_practice 
+    cp build/release/spooky-game spooky-game/spooky-game
 else
     target_debug
 fi
 
-cp -R assets dsa_practice/
+cp -R assets spooky-game/
